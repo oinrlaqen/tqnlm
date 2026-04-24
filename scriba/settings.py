@@ -171,9 +171,5 @@ ACCOUNT_USERNAME_BLACKLIST = [
 
 STATIC_URL = 'static/'
 
-STATICFILES_DIRS = [
-    "base/static",
-]
-
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
