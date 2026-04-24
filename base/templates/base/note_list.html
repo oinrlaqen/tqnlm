@@ -1,0 +1,586 @@
+{% extends 'base/main.html' %}
+{% block content %}
+
+<style>
+    .tag-panel-mode {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 10px 6px;
+        border-bottom: 0.5px solid var(--border-mid);
+        margin-bottom: 4px;
+    }
+    .tag-panel-mode-label {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-hint, #999);
+        letter-spacing: .03em;
+        text-transform: uppercase;
+    }
+    .tag-mode-toggle {
+        display: flex;
+        border: 0.5px solid var(--border-mid);
+        border-radius: var(--radius-sm, 5px);
+        overflow: hidden;
+    }
+    .tag-mode-btn {
+        padding: 3px 10px;
+        font-size: 11px;
+        font-weight: 500;
+        font-family: var(--font-sans);
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+        line-height: 1.6;
+    }
+    .tag-mode-btn + .tag-mode-btn {
+        border-left: 0.5px solid var(--border-mid);
+    }
+    .tag-mode-btn.active {
+        background: var(--accent, #6c63ff);
+        color: #fff;
+    }
+    .tag-mode-btn:not(.active):hover {
+        background: var(--surface-hover, rgba(0,0,0,.05));
+    }
+    .tag-item-actions {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        opacity: 0;
+        transition: opacity 0.15s;
+    }
+    .tag-panel-item:hover .tag-item-actions {
+        opacity: 1;
+    }
+    .tag-action-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border: none;
+        border-radius: var(--radius-sm, 4px);
+        background: transparent;
+        color: var(--text-hint, #aaa);
+        cursor: pointer;
+        padding: 0;
+        transition: background 0.12s, color 0.12s;
+    }
+    .tag-action-btn:hover {
+        background: var(--surface-hover, rgba(0,0,0,.07));
+        color: var(--text-secondary);
+    }
+    .tag-rename-btn:hover {
+        color: var(--accent, #6c63ff);
+    }
+    /* Extra pill colors */
+    .pill-green  { background: #E3F5E9; color: #1A5C2E; }
+    .pill-indigo { background: #E8EAF6; color: #283593; }
+    .pill-rose   { background: #FCE4EC; color: #880E4F; }
+    .pill-cyan   { background: #E0F7FA; color: #00606F; }
+    /* Toast */
+    #toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(12px);
+        background: #1a1a18;
+        color: #fff;
+        font-size: 13px;
+        font-family: var(--font-sans);
+        padding: 9px 18px;
+        border-radius: var(--radius-md, 8px);
+        box-shadow: 0 4px 16px rgba(0,0,0,.18);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s, transform 0.2s;
+        z-index: 9999;
+        white-space: nowrap;
+    }
+    #toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+    #toast.toast-error { background: var(--danger, #993C1D); }
+</style>
+ 
+<!-- Header -->
+<div class="header-bar">
+    <h2>All Notes</h2>
+ 
+    {% if user.is_authenticated %}
+    <form method="POST" action="{% url 'logout' %}" style="margin:0">
+        {% csrf_token %}
+        <button type="submit" class="btn-logout">Logout</button>
+    </form>
+    {% else %}
+    <a href="{% url 'login' %}" class="btn-logout" style="display:inline-flex;align-items:center;">Login</a>
+    {% endif %}
+</div>
+ 
+<!-- Toolbar -->
+<div class="toolbar">
+ 
+    <!-- Search -->
+    <div class="search-wrap">
+        <div class="search-toggle">
+            <button type="button" id="toggleTitle" class="toggle-btn active" onclick="setSearchMode('title')">Title</button>
+            <button type="button" id="toggleBody"  class="toggle-btn"        onclick="setSearchMode('body')">Body</button>
+        </div>
+        <input
+            type="text"
+            id="searchInput"
+            placeholder="Search notes…"
+            value="{{ search_input }}"
+            autocomplete="off"
+        >
+    </div>
+ 
+    <!-- Tag filter + manager dropdown -->
+    <div class="tag-dropdown-wrap">
+        <button class="tag-select-btn" id="tagSelectBtn" onclick="toggleTagPanel(event)" type="button">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M2 4h12M4 8h8M6 12h4"/>
+            </svg>
+            <span id="tagBtnLabel">All tags</span>
+        </button>
+        <div class="tag-panel" id="tagPanel"></div>
+    </div>
+
+    <!-- Delete tag confirmation modal -->
+    <div id="deleteTagModal" style="display:none; position:fixed; inset:0; z-index:500; background:rgba(0,0,0,.32); align-items:center; justify-content:center;">
+        <div style="background:var(--surface); border:0.5px solid var(--border-mid); border-radius:var(--radius-lg); padding:24px 24px 20px; width:100%; max-width:340px; margin:1rem;">
+            <div style="font-size:14px;color:var(--text-primary);line-height:1.55;margin-bottom:20px;">
+                Delete tag <strong id="deleteTagModalName"></strong>? This action cannot be undone
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;">
+                <button id="deleteTagConfirmBtn" style="height:32px;padding:0 14px;font-size:13px;font-weight:500;font-family:var(--font-sans);border:none;border-radius:var(--radius-md);background:var(--danger);color:#fff;cursor:pointer;">Delete tag</button>
+                <button onclick="closeDeleteModal()" style="height:32px;padding:0 14px;font-size:13px;font-family:var(--font-sans);border:0.5px solid var(--border-mid);border-radius:var(--radius-md);background:transparent;color:var(--text-secondary);cursor:pointer;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename tag modal -->
+    <div id="renameTagModal" style="display:none; position:fixed; inset:0; z-index:500; background:rgba(0,0,0,.32); align-items:center; justify-content:center;">
+        <div style="background:var(--surface); border:0.5px solid var(--border-mid); border-radius:var(--radius-lg); padding:24px 24px 20px; width:100%; max-width:340px; margin:1rem;">
+            <div style="font-size:14px;color:var(--text-primary);line-height:1.55;margin-bottom:14px;">
+                Rename tag <strong id="renameTagModalName"></strong>
+            </div>
+            <input id="renameTagInput"
+                   type="text"
+                   style="width:100%;box-sizing:border-box;height:34px;padding:0 10px;font-size:13px;font-family:var(--font-sans);border:0.5px solid var(--border-mid);border-radius:var(--radius-md);background:var(--surface);color:var(--text-primary);outline:none;margin-bottom:18px;"
+                   placeholder="New tag name"
+                   maxlength="20"
+                   onkeydown="if(event.key==='Enter')confirmRenameTag();if(event.key==='Escape')closeRenameModal();"
+            >
+            <div style="display:flex;justify-content:flex-end;gap:8px;">
+                <button onclick="confirmRenameTag()" style="height:32px;padding:0 14px;font-size:13px;font-weight:500;font-family:var(--font-sans);border:none;border-radius:var(--radius-md);background:var(--accent,#6c63ff);color:#fff;cursor:pointer;">Rename</button>
+                <button onclick="closeRenameModal()" style="height:32px;padding:0 14px;font-size:13px;font-family:var(--font-sans);border:0.5px solid var(--border-mid);border-radius:var(--radius-md);background:transparent;color:var(--text-secondary);cursor:pointer;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add note -->
+    <a href="{% url 'note-create' %}" class="btn-add-note">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2">
+            <line x1="8" y1="3" x2="8" y2="13"/>
+            <line x1="3" y1="8" x2="13" y2="8"/>
+        </svg>
+        Add note
+    </a>
+</div>
+
+<!-- Notes grid (rendered by JS) -->
+<div class="notes-grid" id="notesGrid"></div>
+<div id="toast"></div>
+
+<!-- ── Data injected from Django ── -->
+<script>
+    // Notes data from the server
+    const NOTES_DATA = [
+        {% for note in notes %}
+        {
+            id: {{ note.pk }},
+            title: "{{ note.title|escapejs }}",
+            body: "{{ note.description|escapejs }}",
+            tags: [{% for tag in note.tags.all %}{ id: {{ tag.pk }}, name: "{{ tag.name|escapejs }}" }{% if not forloop.last %},{% endif %}{% endfor %}],
+            urlView:   "{% url 'note' note.pk %}",
+            urlEdit:   "{% url 'note-update' note.pk %}",
+            urlDelete: "{% url 'note-delete' note.pk %}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+ 
+    // All tags for the current user
+    const ALL_TAGS_DATA = [
+        {% for tag in user_tags %}
+        { id: {{ tag.id }}, name: "{{ tag.name|escapejs }}", urlDelete: "{% url 'delete_tag' tag.pk %}", urlRename: "{% url 'rename_tag' tag.pk %}" }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+ 
+    // Pre-selected tag filter from the server (if any)
+    const INITIAL_TAG_FILTER = "{{ tag_filter|default:'' }}";
+ 
+    // CSRF token for POST requests
+    const CSRF_TOKEN = "{{ csrf_token }}";
+</script>
+
+<!-- ── UI Logic ── -->
+<script>
+    const PILL_COLORS = [
+        'pill-purple','pill-teal','pill-coral','pill-blue','pill-amber',
+        'pill-pink','pill-green','pill-indigo','pill-rose','pill-cyan',
+        'pill-lime','pill-emerald','pill-violet','pill-fuchsia','pill-sky',
+        'pill-orange','pill-red','pill-yellow','pill-slate','pill-gray',
+        'pill-zinc','pill-neutral','pill-stone','pill-brown','pill-gold'
+    ];
+    // Color is keyed by tag ID (stable number), not name — so renames never shift colors
+    const tagColorById = {};
+
+    function pillClassById(tagId) {
+        const key = String(tagId);
+        if (!tagColorById[key]) {
+            // Hash the numeric ID into a color slot so order doesn't matter
+            const hash = parseInt(key, 25) || 0;
+            tagColorById[key] = PILL_COLORS[hash % PILL_COLORS.length];
+        }
+        return tagColorById[key];
+    }
+
+    // Pre-seed all known tag IDs on load
+    ALL_TAGS_DATA.forEach(t => pillClassById(t.id));
+
+    // Strip HTML tags and decode entities to get plain text for body search
+    function stripHtml(html) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        return (tmp.textContent || tmp.innerText || '').toLowerCase();
+    }
+
+    // Pre-compute plain-text body for each note once on load
+    const NOTES_DATA_PLAIN = NOTES_DATA.map(n => ({
+        ...n,
+        bodyPlain: stripHtml(n.body)
+    }));
+ 
+    // Multi-tag selection: use a Set of string IDs
+    let selectedTagIds = new Set(INITIAL_TAG_FILTER ? [String(INITIAL_TAG_FILTER)] : []);
+    let tagFilterMode = 'or'; // 'or' = match any tag, 'and' = match all tags
+    let allTags = [...ALL_TAGS_DATA];
+    let notes = NOTES_DATA_PLAIN.map(n => ({...n, tags: [...n.tags]}));
+ 
+    // ── Tag panel ──────────────────────────────────────────────────────────────
+ 
+    function renderTagPanel() {
+        const panel = document.getElementById('tagPanel');
+        if (!allTags.length) {
+            panel.innerHTML = '<div class="tag-panel-empty">No tags yet</div>';
+            return;
+        }
+        const modeBar = `
+            <div class="tag-panel-mode" onclick="event.stopPropagation()">
+                <span class="tag-panel-mode-label">Match Type</span>
+                <div class="tag-mode-toggle">
+                    <button type="button"
+                            class="tag-mode-btn ${tagFilterMode === 'or' ? 'active' : ''}"
+                            onclick="setTagFilterMode('or', event)">Any</button>
+                    <button type="button"
+                            class="tag-mode-btn ${tagFilterMode === 'and' ? 'active' : ''}"
+                            onclick="setTagFilterMode('and', event)">All</button>
+                </div>
+            </div>`;
+        panel.innerHTML = modeBar + allTags.map(tag => `
+            <div class="tag-panel-item ${selectedTagIds.has(String(tag.id)) ? 'selected' : ''}"
+                 onclick="selectTag('${tag.id}', event)">
+                <span class="pill ${pillClassById(tag.id)}">${escHtml(tag.name)}</span>
+                <div class="tag-item-actions">
+                    <button class="tag-action-btn tag-rename-btn"
+                            onclick="openRenameModal('${tag.id}', '${escAttr(tag.name)}', '${escAttr(tag.urlRename)}', event)"
+                            title="Rename tag" type="button">
+                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7">
+                            <path d="M11 2.5l2.5 2.5L5 13.5H2.5V11L11 2.5z"/>
+                        </svg>
+                    </button>
+                    <button class="tag-del-btn"
+                            onclick="deleteTag('${tag.id}', '${escAttr(tag.urlDelete)}', event)"
+                            title="Delete tag" type="button">✕</button>
+                </div>
+            </div>
+        `).join('');
+    }
+ 
+    function toggleTagPanel(e) {
+        e.stopPropagation();
+        const panel = document.getElementById('tagPanel');
+        const isOpen = panel.classList.contains('open');
+        if (!isOpen) renderTagPanel();
+        panel.classList.toggle('open', !isOpen);
+    }
+ 
+    document.addEventListener('click', () => {
+        document.getElementById('tagPanel').classList.remove('open');
+    });
+ 
+    function selectTag(tagId, e) {
+        e.stopPropagation();
+        const id = String(tagId);
+        if (selectedTagIds.has(id)) {
+            selectedTagIds.delete(id);
+        } else {
+            selectedTagIds.add(id);
+        }
+        updateTagBtnLabel();
+        renderTagPanel();
+        renderNotes();
+    }
+
+    function setTagFilterMode(mode, e) {
+        e.stopPropagation();
+        tagFilterMode = mode;
+        renderTagPanel();
+        renderNotes();
+    }
+
+    function updateTagBtnLabel() {
+        const label = document.getElementById('tagBtnLabel');
+        if (selectedTagIds.size === 0) {
+            label.textContent = 'All tags';
+        } else if (selectedTagIds.size === 1) {
+            const id = [...selectedTagIds][0];
+            const tag = allTags.find(t => String(t.id) === id);
+            label.textContent = tag ? tag.name : 'All tags';
+        } else {
+            label.textContent = `${selectedTagIds.size} tags`;
+        }
+    }
+ 
+    let _pendingDelete = null;
+
+    function deleteTag(tagId, deleteUrl, e) {
+        e.stopPropagation();
+
+        const tag = allTags.find(t => String(t.id) === String(tagId));
+        document.getElementById('deleteTagModalName').textContent = tag ? tag.name : 'this tag';
+
+        const modal = document.getElementById('deleteTagModal');
+        modal.style.display = 'flex';
+
+        _pendingDelete = { tagId, deleteUrl };
+
+        document.getElementById('deleteTagConfirmBtn').onclick = confirmDeleteTag;
+    }
+
+    function confirmDeleteTag() {
+        if (!_pendingDelete) return;
+        const { tagId, deleteUrl } = _pendingDelete;
+        closeDeleteModal();
+
+        allTags = allTags.filter(t => t.id != tagId);
+        notes = notes.map(n => ({ ...n, tags: n.tags.filter(t => t.id != tagId) }));
+        selectedTagIds.delete(String(tagId));
+        updateTagBtnLabel();
+        renderTagPanel();
+        renderNotes();
+
+        fetch(deleteUrl, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF_TOKEN, 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'csrfmiddlewaretoken=' + encodeURIComponent(CSRF_TOKEN)
+        }).catch(() => { window.location.reload(); });
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteTagModal').style.display = 'none';
+        _pendingDelete = null;
+    }
+
+    // ── Rename tag ─────────────────────────────────────────────────────────────
+
+    let _pendingRename = null;
+
+    function openRenameModal(tagId, tagName, renameUrl, e) {
+        e.stopPropagation();
+        document.getElementById('renameTagModalName').textContent = tagName;
+        const input = document.getElementById('renameTagInput');
+        input.value = tagName;
+        document.getElementById('renameTagModal').style.display = 'flex';
+        _pendingRename = { tagId, renameUrl };
+        setTimeout(() => { input.focus(); input.select(); }, 50);
+    }
+
+    function showToast(msg, isError = false) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'show' + (isError ? ' toast-error' : '');
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => { t.className = ''; }, 3000);
+    }
+
+    function confirmRenameTag() {
+        if (!_pendingRename) return;
+        const { tagId, renameUrl } = _pendingRename;
+        const newName = document.getElementById('renameTagInput').value.trim();
+        if (!newName) return;
+
+        const originalTag = allTags.find(t => String(t.id) === String(tagId));
+        const oldName = originalTag?.name;
+
+        // No-op if unchanged
+        if (oldName && oldName.toLowerCase() === newName.toLowerCase()) {
+            closeRenameModal();
+            return;
+        }
+
+        // Check for duplicate before doing anything
+        const duplicate = allTags.find(t =>
+            String(t.id) !== String(tagId) &&
+            t.name.toLowerCase() === newName.toLowerCase()
+        );
+        if (duplicate) {
+            showToast('This tag already exists', true);
+            return; // modal stays open, nothing changes
+        }
+
+        closeRenameModal();
+
+        // Safe to update — no duplicate possible
+        allTags = allTags.map(t => String(t.id) === String(tagId) ? { ...t, name: newName } : t);
+        notes = notes.map(n => ({
+            ...n,
+            tags: n.tags.map(t => String(t.id) === String(tagId) ? { ...t, name: newName } : t)
+        }));
+        updateTagBtnLabel();
+        renderTagPanel();
+        renderNotes();
+
+        fetch(renameUrl, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF_TOKEN, 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'csrfmiddlewaretoken=' + encodeURIComponent(CSRF_TOKEN) + '&name=' + encodeURIComponent(newName)
+        })
+        .then(res => res.json())
+        .then(data => {
+            // Should never happen given client validation, but just in case
+            if (!data.ok) {
+                allTags = allTags.map(t => String(t.id) === String(tagId) ? { ...t, name: oldName } : t);
+                notes = notes.map(n => ({
+                    ...n,
+                    tags: n.tags.map(t => String(t.id) === String(tagId) ? { ...t, name: oldName } : t)
+                }));
+                updateTagBtnLabel();
+                renderTagPanel();
+                renderNotes();
+                showToast(data.error || 'Could not rename tag.', true);
+            }
+        })
+        .catch(() => { window.location.reload(); });
+    }
+
+    function closeRenameModal() {
+        document.getElementById('renameTagModal').style.display = 'none';
+        _pendingRename = null;
+    }
+
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closeDeleteModal(); closeRenameModal(); }
+    });
+    
+ 
+    // ── Notes rendering ────────────────────────────────────────────────────────
+ 
+    const iconView = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <ellipse cx="8" cy="8" rx="5.5" ry="3.5"/>
+        <circle cx="8" cy="8" r="1.6" fill="currentColor" stroke="none"/>
+    </svg>`;
+ 
+    const iconEdit = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M11 2.5l2.5 2.5L5 13.5H2.5V11L11 2.5z"/>
+    </svg>`;
+ 
+    const iconDelete = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <polyline points="3,5 13,5"/>
+        <path d="M6 5V3h4v2"/>
+        <path d="M4.5 5l.75 8h5.5l.75-8"/>
+    </svg>`;
+
+    // Debounce timer for search input
+    let debounceTimer;
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('searchInput').addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(renderNotes, 150);
+        });
+    });
+
+    let searchMode = 'title';
+
+    function setSearchMode(mode) {
+        searchMode = mode;
+        document.getElementById('toggleTitle').classList.toggle('active', mode === 'title');
+        document.getElementById('toggleBody').classList.toggle('active', mode === 'body');
+        renderNotes();
+    }
+ 
+    function renderNotes() {
+        const grid = document.getElementById('notesGrid');
+        const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+ 
+        const filtered = notes.filter(n => {
+            const matchSearch = !q || (
+                searchMode === 'body'
+                    ? n.bodyPlain.includes(q)
+                    : n.title.toLowerCase().includes(q)
+            );
+            const matchTag = selectedTagIds.size === 0 || (
+                tagFilterMode === 'and'
+                    ? [...selectedTagIds].every(id => n.tags.some(t => String(t.id) === id))
+                    : [...selectedTagIds].some(id => n.tags.some(t => String(t.id) === id))
+            );
+            return matchSearch && matchTag;
+        });
+ 
+        if (!filtered.length) {
+            grid.innerHTML = '<div class="no-notes">No notes found</div>';
+            return;
+        }
+ 
+        grid.innerHTML = filtered.map(n => `
+            <div class="note-card">
+                <div class="note-body">
+                    <div class="note-title">${escHtml(n.title)}</div>
+                    <div class="note-tags">
+                        ${n.tags.length
+                            ? n.tags.map(t => `<span class="pill ${pillClassById(t.id)}">${escHtml(t.name)}</span>`).join('')
+                            : '<span style="font-size:12px;color:var(--text-hint)">No Tags</span>'
+                        }
+                    </div>
+                </div>
+                <div class="note-actions">
+                    <a href="${n.urlView}"   class="icon-btn"     title="View">${iconView}</a>
+                    <a href="${n.urlEdit}"   class="icon-btn"     title="Edit">${iconEdit}</a>
+                    <a href="${n.urlDelete}" class="icon-btn del" title="Delete">${iconDelete}</a>
+                </div>
+            </div>
+        `).join('');
+    }
+ 
+    // ── Utilities ──────────────────────────────────────────────────────────────
+ 
+    function escHtml(str) {
+        return String(str)
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function escAttr(str) { return String(str).replace(/"/g,'&quot;'); }
+ 
+    // ── Init ──────────────────────────────────────────────────────────────────
+
+    updateTagBtnLabel();
+    renderNotes();
+</script>
+
+{% endblock content %}

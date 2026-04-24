@@ -1,0 +1,61 @@
+{% extends 'base/main.html' %}
+{% block content %}
+ 
+<div class="header-bar">
+    <h2>Delete Note</h2>
+    <a href="{% url 'notes' %}" class="btn-logout">Go Back</a>
+</div>
+ 
+<div style="
+    background: var(--danger-bg);
+    border: 0.5px solid rgba(153,60,29,.18);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 1.75rem;
+">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+         stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+         style="flex-shrink:0; margin-top:1px;">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <p style="font-size: 13px; color: var(--danger); line-height: 1.5; margin: 0;">
+        This action cannot be undone. The note <strong>{{ note.title|truncatechars:20 }}</strong> will be permanently deleted
+    </p>
+</div>
+ 
+<form method="POST" style="display: flex; align-items: center; gap: 10px;">
+    {% csrf_token %}
+    <button type="submit" style="
+        height: 36px;
+        padding: 0 16px;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        background: var(--danger);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius-md);
+        font-size: 13px;
+        font-weight: 500;
+        font-family: var(--font-sans);
+        cursor: pointer;
+        transition: opacity .15s;
+    " onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+        </svg>
+        Delete Note
+    </button>
+    <a href="{% url 'notes' %}" class="btn-logout">Cancel</a>
+</form>
+ 
+{% endblock content %}

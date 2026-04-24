@@ -1,0 +1,205 @@
+{% extends 'base/main.html' %}
+{% block content %}
+ 
+<div class="header-bar">
+    <h2>{% if object %}Edit Note{% else %}New Note{% endif %}</h2>
+    <a href="{% url 'notes' %}" class="btn-logout">← Back</a>
+</div>
+ 
+<div class="note-card" style="flex-direction: column; align-items: stretch; gap: 0; padding: 24px 28px;">
+ 
+    <!-- Main note form -->
+    <form method="POST" action="" id="note-form">
+        {% csrf_token %}
+        <div class="form-fields">
+            {{ form.as_p }}
+        </div>
+        <div style="margin-top: 20px;">
+            <button type="submit" class="btn-add-note" style="height: 38px; font-size: 14px;">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M13.5 9.5v4h-11v-11h4"/>
+                    <path d="M9 2h5v5"/>
+                    <path d="M14 2L7 9"/>
+                </svg>
+                Save Note
+            </button>
+        </div>
+    </form>
+ 
+    {% if object %}
+ 
+    <!-- Divider -->
+    <div style="border-top: 0.5px solid var(--border); margin: 28px 0;"></div>
+ 
+    <!-- Tag section -->
+    <div>
+        <h3 style="font-size: 14px; font-weight: 500; color: var(--text-secondary); margin-bottom: 16px; letter-spacing: 0.03em; text-transform: uppercase; font-family: var(--font-mono);">Tags</h3>
+ 
+        <!-- Current tags -->
+        <div class="note-tags" style="margin-bottom: 18px; min-height: 26px;">
+            {% if note_tags %}
+                {% for tag in note_tags %}
+                <span class="pill pill-purple" style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px 3px 10px;">
+                    {{ tag.name }}
+                    <form method="POST" action="{% url 'remove-tag' object.pk tag.pk %}" style="display: inline; margin: 0; padding: 0;">
+                        {% csrf_token %}
+                        <button type="submit" style="background: none; border: none; cursor: pointer; padding: 0; line-height: 1; font-size: 11px; color: #7F77DD; display: flex; align-items: center;" title="Remove tag">
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                                <path d="M2 2l6 6M8 2l-6 6"/>
+                            </svg>
+                        </button>
+                    </form>
+                </span>
+                {% endfor %}
+            {% else %}
+                <span style="font-size: 13px; color: var(--text-hint);">No tags yet.</span>
+            {% endif %}
+        </div>
+ 
+        <!-- Add new tag -->
+        <form method="POST" action="" style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center;">
+            {% csrf_token %}
+            <div class="search-wrap" style="flex: 1; min-width: 0;">
+                <svg class="search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                    <path d="M7 12A5 5 0 107 2a5 5 0 000 10zM14 14l-3-3"/>
+                </svg>
+                <input type="text" name="new_tag_name" placeholder="New tag name…" maxlength="20">
+            </div>
+            <button type="submit" name="add_tag" class="btn-add-note" style="height: 36px; gap: 5px;">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <path d="M6 1v10M1 6h10"/>
+                </svg>
+                Add
+            </button>
+        </form>
+ 
+        <!-- Assign existing tag -->
+        {% if available_tags %}
+        <form method="POST" action="" id="assign-tag-form">
+            {% csrf_token %}
+            <input type="hidden" name="assign_tag" id="assign-tag-input" value="">
+
+            <div class="tag-dropdown-wrap">
+                <button class="tag-select-btn" id="assignTagBtn" onclick="toggleAssignPanel(event)" type="button">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                        <path d="M2 4h12M4 8h8M6 12h4"/>
+                    </svg>
+                    <span id="assignBtnLabel">Assign existing tag</span>
+                    <span class="chevron">▾</span>
+                </button>
+
+                <div class="tag-panel" id="assignTagPanel">
+                    {% for tag in available_tags %}
+                    <div class="tag-panel-item" onclick="selectAssignTag('{{ tag.id }}', '{{ tag.name }}')">
+                        {{ tag.name }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </form>
+
+        <script>
+        function toggleAssignPanel(e) {
+            e.stopPropagation();
+            document.getElementById('assignTagPanel').classList.toggle('open');
+        }
+
+        function selectAssignTag(id, name) {
+            document.getElementById('assign-tag-input').value = id;
+            document.getElementById('assignBtnLabel').textContent = name;
+            document.getElementById('assignTagPanel').classList.remove('open');
+            document.getElementById('assign-tag-form').submit();
+        }
+
+        document.addEventListener('click', function() {
+            document.getElementById('assignTagPanel').classList.remove('open');
+        });
+        </script>
+        {% endif %}
+    </div>
+ 
+    {% else %}
+    <!-- Not yet saved -->
+    <div style="border-top: 0.5px solid var(--border); margin: 28px 0;"></div>
+    <p style="font-size: 13px; color: var(--text-hint); margin: 0;">Save the note first to manage tags.</p>
+    {% endif %}
+ 
+</div>
+ 
+<style>
+    /* Style Django auto-generated form fields */
+    #note-form p {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 14px;
+    }
+    #note-form label {
+        font-size: 12px;
+        font-weight: 500;
+        font-family: var(--font-mono);
+        color: var(--text-secondary);
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+    }
+    #note-form input[type="text"],
+    #note-form input[type="email"],
+    #note-form input[type="url"],
+    #note-form textarea,
+    #note-form select {
+        height: 36px;
+        padding: 0 12px;
+        border: 0.5px solid var(--border);
+        border-radius: var(--radius-md);
+        font-size: 13px;
+        font-family: var(--font-sans);
+        background: var(--surface);
+        color: var(--text-primary);
+        outline: none;
+        transition: border .15s;
+        width: 100%;
+    }
+    #note-form textarea {
+        height: auto;
+        min-height: 120px;
+        padding: 10px 12px;
+        resize: vertical;
+        line-height: 1.55;
+    }
+    #note-form input[type="text"]:focus,
+    #note-form textarea:focus,
+    #note-form select:focus {
+        border-color: var(--border-mid);
+    }
+    #note-form input::placeholder,
+    #note-form textarea::placeholder {
+        color: var(--text-hint);
+    }
+    #note-form select {
+        appearance: none;
+        cursor: pointer;
+    }
+
+    /* Fix tag input search-wrap (overrides the toolbar version from main.html) */
+    .note-card .search-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+        border-radius: var(--radius-md);
+    }
+    .note-card .search-wrap input {
+        padding: 0 12px 0 34px;
+    }
+    .note-card .search-icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 14px;
+        height: 14px;
+        color: var(--text-hint);
+        pointer-events: none;
+    }
+</style>
+ 
+{% endblock content %}
