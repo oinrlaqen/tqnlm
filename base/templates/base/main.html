@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="{% static 'css/highlight.css' %}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
 
     <link rel="icon" type="image/png" href="{% static 'favicon.svg' %}">
 
@@ -56,6 +57,7 @@
             max-width: 800px;
             margin: 0 auto;
             padding: 0 1.5rem;
+            padding-bottom: 1.5rem;
         }
  
         /* Header bar */
@@ -65,7 +67,7 @@
             justify-content: space-between;
             padding-bottom: 1.25rem;
             border-bottom: 0.5px solid var(--border);
-            margin-bottom: 2rem;
+            margin-bottom: 1.25rem;
         }
         .header-bar h2 {
             font-size: 18px;
@@ -169,6 +171,8 @@
             cursor: pointer;
             white-space: nowrap;
             transition: border .15s;
+            width: 70px;
+            flex-shrink: 0;
         }
         .tag-select-btn:hover { border-color: var(--border-mid); }
         .tag-select-btn .chevron { font-size: 10px; color: var(--text-hint); margin-left: 2px; }
@@ -178,7 +182,7 @@
             position: absolute;
             top: calc(100% + 6px); left: 0;
             z-index: 200;
-            min-width: 220px;
+            min-width: 270px;
             background: var(--surface);
             border: 0.5px solid var(--border-mid);
             border-radius: var(--radius-lg);
@@ -211,6 +215,103 @@
         .tag-panel-empty {
             font-size: 13px; color: var(--text-hint);
             padding: 8px 8px;
+        }
+
+        /* Sort dropdown */
+        .sort-dropdown-wrap { position: relative; }
+
+        .sort-select-btn {
+            height: 36px;
+            padding: 0 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border: 0.5px solid var(--border);
+            border-radius: var(--radius-md);
+            background: var(--surface);
+            color: var(--text-primary);
+            font-size: 13px;
+            font-family: var(--font-sans);
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: border-color .15s;
+        }
+        .sort-select-btn:hover { border-color: var(--border-mid); }
+
+        .sort-panel {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            z-index: 300;
+            min-width: 190px;
+            background: var(--surface);
+            border: 0.5px solid var(--border-mid);
+            border-radius: var(--radius-lg);
+            padding: 6px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.1);
+        }
+        .sort-panel.open { display: block; }
+
+        .sort-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px 8px;
+            gap: 12px;
+            margin-bottom: 2px;
+        }
+        .sort-row-label {
+            font-size: 13px;
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+
+        .sort-pill-btn {
+            border: 0.5px solid var(--border-mid);
+            border-radius: 99px;
+            background: transparent;
+            cursor: pointer;
+            padding: 0;
+            flex-shrink: 0;
+            transition: border-color .15s, background .15s, box-shadow .15s;
+        }
+        .sort-pill-btn:hover {
+            border-color: var(--accent);
+            background: #EEEDFE;
+            box-shadow: 0 0 0 3px rgba(83,74,183,.1);
+        }
+        .sort-pill-btn.active {
+            border-color: var(--accent);
+            background: var(--accent);
+            box-shadow: 0 0 0 3px rgba(83,74,183,.15);
+        }
+        .sort-pill-btn.active .sort-pill-text,
+        .sort-pill-btn.active .sort-pill-icon { color: #fff; }
+
+        .sort-pill-inner {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px 4px 8px;
+        }
+        .sort-pill-icon {
+            display: flex;
+            align-items: center;
+            color: var(--text-secondary);
+            transition: transform .25s cubic-bezier(.34,1.56,.64,1);
+        }
+        .sort-pill-btn.flipped .sort-pill-icon { transform: rotate(180deg); }
+        .sort-pill-text {
+            font-size: 11px;
+            font-weight: 500;
+            font-family: var(--font-sans);
+            color: var(--text-secondary);
+            white-space: nowrap;
+            transition: color .15s;
+            display: inline-block;
+            min-width: 46px;
         }
  
         /* Add note button */

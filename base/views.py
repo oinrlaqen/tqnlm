@@ -13,7 +13,7 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 
 from .models import Note, Tag
-from .forms import EmailLoginForm, EmailRegisterForm
+from .forms import EmailLoginForm, EmailRegisterForm, NoteForm
 
 from django.http import HttpResponse
 from django.http import JsonResponse
@@ -67,7 +67,8 @@ class NoteDetail(LoginRequiredMixin, DetailView):
 
 class NoteCreate(LoginRequiredMixin, CreateView):
     model = Note
-    fields = ['title', 'description']
+    form_class = NoteForm
+    template_name = 'base/note_create.html'
     success_url = reverse_lazy('notes')
 
     def get_success_url(self):
@@ -75,17 +76,32 @@ class NoteCreate(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.user = self.request.user
-        return super(NoteCreate, self).form_valid(form)
+        response = super(NoteCreate, self).form_valid(form)
+
+        tag_names = self.request.POST.getlist('new_tags')
+        for name in tag_names:
+            name = name.strip()
+            if name:
+                tag, _ = Tag.objects.get_or_create(
+                    user=self.request.user,
+                    name=name,
+                )
+                self.object.tags.add(tag)
+
+        return response
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['note_tags'] = Tag.objects.none()
         context['available_tags'] = Tag.objects.none()
+        context['user_tags'] = Tag.objects.filter(user=self.request.user)
         return context
+
 
 class NoteUpdate(LoginRequiredMixin, UpdateView):
     model = Note
-    fields = ['title', 'description']
+    form_class = NoteForm
+    template_name = 'base/note_update.html'
     success_url = reverse_lazy('notes')
 
     def get_context_data(self, **kwargs):

@@ -1,0 +1,492 @@
+{% extends 'base/main.html' %}
+{% block content %}
+
+<style>
+    /* ── Editable title ───────────────────────────────────────── */
+    .title-input {
+        font-size: 22px;
+        font-weight: 500;
+        font-family: var(--font-sans);
+        color: var(--text-primary);
+        background: transparent;
+        border: none;
+        outline: none;
+        width: 100%;
+        padding: 0;
+        line-height: 1.2;
+        caret-color: var(--accent);
+    }
+    .title-input::placeholder { color: var(--text-hint); }
+
+    /* ── Tag toolbar ──────────────────────────────────────────── */
+    .tag-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0rem 0 1.25rem;
+        border-bottom: 0.5px solid var(--border);
+        flex-wrap: wrap;
+    }
+
+    /* Tag input */
+    .tag-input-wrap {
+        display: flex;
+        align-items: center;
+        height: 36px;
+        border: 0.5px solid var(--border);
+        border-radius: var(--radius-md);
+        background: var(--surface);
+        transition: border .15s;
+        overflow: hidden;
+        min-width: 120px;
+        flex: 1;
+    }
+    .tag-input-wrap:focus-within { border-color: var(--border-mid); }
+    .tag-input-wrap input {
+        flex: 1;
+        height: 100%;
+        padding: 0 10px;
+        border: none;
+        font-size: 13px;
+        font-family: var(--font-sans);
+        background: transparent;
+        color: var(--text-primary);
+        outline: none;
+    }
+    .tag-input-wrap input::placeholder { color: var(--text-hint); }
+
+    /* Small toolbar buttons — match note_list tag/sort button style */
+    .toolbar-btn {
+        height: 36px;
+        padding: 0 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border-radius: var(--radius-md);
+        font-size: 13px;
+        font-weight: 400;
+        font-family: var(--font-sans);
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background .15s, color .15s, border-color .15s;
+        flex-shrink: 0;
+        min-width: 85px;
+    }
+    .toolbar-btn-ghost {
+        border: 0.5px solid var(--border);
+        background: var(--surface);
+        color: var(--text-primary);
+    }
+    .toolbar-btn-ghost:hover {
+        border-color: var(--border-mid);
+        background: #f5f4f0;
+    }
+    .toolbar-btn-accent {
+        border: none;
+        background: var(--accent);
+        color: #fff;
+        font-weight: 500;
+    }
+    .toolbar-btn-accent:hover { background: var(--accent-dark); }
+
+    /* ── Markdown info button ─────────────────────────────────── */
+    .toolbar-btn-info {
+        height: 36px;
+        width: 36px;
+        min-width: unset;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-md);
+        border: 0.5px solid var(--border);
+        background: transparent;
+        color: var(--text-hint);
+        cursor: pointer;
+        transition: background .15s, color .15s, border-color .15s;
+        flex-shrink: 0;
+        text-decoration: none;
+    }
+    .toolbar-btn-info:hover {
+        border-color: var(--border-mid);
+        background: #f5f4f0;
+        color: var(--text-secondary);
+        text-decoration: none;
+    }
+
+    /* Select-tag dropdown */
+    .select-tag-wrap { position: relative; }
+    .select-tag-panel {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        z-index: 300;
+        min-width: 240px;
+        background: var(--surface);
+        border: 0.5px solid var(--border-mid);
+        border-radius: var(--radius-lg);
+        padding: 6px;
+        box-shadow: 0 8px 24px rgba(0,0,0,.10);
+    }
+    .select-tag-panel.open { display: block; }
+
+    /* Select-tag dropdown items */
+    .select-tag-item {
+        padding: 4px 8px;
+        border-radius: var(--radius-md);
+        font-size: 13px;
+        cursor: pointer;
+        transition: background .1s;
+    }
+    .select-tag-item:hover { background: #f5f4f0; }
+    .select-tag-item.hidden { display: none; }
+
+    /* Extra pill colors (mirrors note_list) */
+    .pill-green   { background: #E3F5E9; color: #1A5C2E; }
+    .pill-indigo  { background: #E8EAF6; color: #283593; }
+    .pill-rose    { background: #FCE4EC; color: #880E4F; }
+    .pill-cyan    { background: #E0F7FA; color: #00606F; }
+    .pill-lime    { background: #F0FBE4; color: #3B5E08; }
+    .pill-emerald { background: #D9F5E9; color: #065F3C; }
+    .pill-violet  { background: #EDE9FE; color: #4C1D95; }
+    .pill-fuchsia { background: #FDF4FF; color: #86198F; }
+    .pill-sky     { background: #E0F2FE; color: #0C4A6E; }
+    .pill-orange  { background: #FFF0E0; color: #7C2D12; }
+    .pill-red     { background: #FEECEC; color: #7F1D1D; }
+    .pill-yellow  { background: #FEFCE8; color: #713F12; }
+    .pill-slate   { background: #F1F5F9; color: #1E293B; }
+    .pill-gray    { background: #F3F4F6; color: #1F2937; }
+    .pill-zinc    { background: #F4F4F5; color: #18181B; }
+    .pill-neutral { background: #F5F5F5; color: #171717; }
+    .pill-stone   { background: #F5F5F4; color: #1C1917; }
+    .pill-brown   { background: #F3EDE8; color: #5C2E0E; }
+    .pill-gold    { background: #FDF8E1; color: #7A5700; }
+
+    /* ── Current tags — horizontal carousel ──────────────────── */
+    .current-tags-wrap {
+        position: relative;
+        padding: 10px 0 4px;
+    }
+
+    .current-tags {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 4px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        padding-bottom: 2px;
+    }
+    .current-tags::-webkit-scrollbar { display: none; }
+    /* Center only when all pills fit without scrolling */
+    .current-tags.not-overflowing { justify-content: center; }
+
+    /* Fade edges when content overflows */
+    .current-tags-wrap::before,
+    .current-tags-wrap::after {
+        content: '';
+        position: absolute;
+        top: 10px; bottom: 4px;
+        width: 28px;
+        pointer-events: none;
+        z-index: 1;
+        opacity: 0;
+        transition: opacity .2s;
+    }
+    .current-tags-wrap::before {
+        left: 0;
+        background: linear-gradient(to right, var(--bg), transparent);
+    }
+    .current-tags-wrap::after {
+        right: 0;
+        background: linear-gradient(to left, var(--bg), transparent);
+    }
+    .current-tags-wrap.fade-left::before  { opacity: 1; }
+    .current-tags-wrap.fade-right::after  { opacity: 1; }
+
+    /* ── Carousel scroll arrows ──────────────────────────────── */
+    .carousel-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 2;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 0.5px solid var(--border-mid);
+        background: var(--surface);
+        color: var(--text-secondary);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        padding: 0;
+        transition: background .15s, color .15s, border-color .15s;
+        flex-shrink: 0;
+    }
+    .carousel-arrow:hover {
+        background: #f5f4f0;
+        border-color: var(--border);
+        color: var(--text-primary);
+    }
+    .carousel-arrow.visible { display: flex; }
+    .carousel-arrow-left  { left: 0; }
+    .carousel-arrow-right { right: 0; }
+
+    /* indent scroll area when arrows are present */
+    .current-tags-wrap.has-left  .current-tags { padding-left:  30px; }
+    .current-tags-wrap.has-right .current-tags { padding-right: 30px; }
+
+    /* ── Note body — clean, no box ────────────────────────────── */
+    .note-body-area { padding-top: 20px; }
+
+    .note-body-area textarea {
+        width: 100%;
+        padding: 0;
+        border: none;
+        font-size: 15px;
+        font-family: var(--font-sans);
+        background: transparent;
+        color: var(--text-primary);
+        outline: none;
+        resize: none;
+        line-height: 1.65;
+        min-height: 360px;
+        caret-color: var(--accent);
+    }
+    .note-body-area textarea::placeholder { color: var(--text-hint); }
+</style>
+
+<!-- Remove-tag forms live OUTSIDE the main form to avoid nesting -->
+{% if note_tags %}
+{% for tag in note_tags %}
+<form method="POST" action="{% url 'remove-tag' object.pk tag.pk %}" id="remove-tag-{{ tag.pk }}" style="display:none;">
+    {% csrf_token %}
+</form>
+{% endfor %}
+{% endif %}
+
+<form method="POST" action="" id="main-note-form">
+    {% csrf_token %}
+
+    <!-- ── Header bar ── -->
+    <div class="header-bar" style="align-items: center; gap: 12px;">
+        <input
+            class="title-input"
+            type="text"
+            name="title"
+            id="id_title"
+            placeholder="Title here"
+            value="{% if form.title.value %}{{ form.title.value }}{% endif %}"
+            autocomplete="off"
+        >
+        <a href="{% url 'notes' %}" class="btn-logout" style="flex-shrink:0;">← Back</a>
+    </div>
+
+    <!-- ── Tag toolbar ── -->
+    {# ─── EXISTING NOTE: full tag management ─── #}
+    <div class="tag-toolbar">
+
+        <div class="tag-input-wrap">
+            <input type="text" name="new_tag_name" id="new-tag-name" placeholder="Tag name" maxlength="20" autocomplete="off">
+        </div>
+
+        <button type="submit" name="add_tag" class="toolbar-btn toolbar-btn-ghost">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="8" cy="8" r="6.5"/>
+                <path d="M8 5v6M5 8h6"/>
+            </svg>
+            Add
+        </button>
+
+        {% if available_tags %}
+        <div class="select-tag-wrap">
+            <button type="button" class="toolbar-btn toolbar-btn-ghost" onclick="toggleSelectPanel(event)">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 2h5.5l6.5 6.5-5.5 5.5L2 7.5V2z"/>
+                    <circle cx="5" cy="5" r="1" fill="currentColor" stroke="none"/>
+                </svg>
+                Select
+            </button>
+            <div class="select-tag-panel" id="selectTagPanel">
+                {% for tag in available_tags %}
+                <div class="select-tag-item" data-tag-id="{{ tag.id }}" onclick="submitAssignTag('{{ tag.id }}')">{{ tag.name }}</div>
+                {% endfor %}
+            </div>
+        </div>
+        <input type="hidden" name="assign_tag" id="assign-tag-input" value="">
+        {% endif %}
+
+        <!-- ── Markdown syntax reference ── -->
+        <a
+            href="https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="toolbar-btn-info"
+            title="Markdown Cheatsheet"
+        >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="8" cy="8" r="6.5"/>
+                <path d="M8 7.5v4"/>
+                <circle cx="8" cy="5" r=".6" fill="currentColor" stroke="none"/>
+            </svg>
+        </a>
+
+        <button type="submit" name="save_note" class="toolbar-btn toolbar-btn-accent">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13.5 9.5v4h-11v-11h4"/>
+                <path d="M9 2h5v5"/>
+                <path d="M14 2L7 9"/>
+            </svg>
+            Save Note
+        </button>
+    </div>
+
+    <!-- Current tags carousel -->
+    {% if note_tags %}
+    <div class="current-tags-wrap" id="tags-wrap">
+        <button type="button" class="carousel-arrow carousel-arrow-left" id="tags-arrow-left" onclick="carouselScroll('tags-scroll', -1)" aria-label="Scroll left">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6.5 1.5L3 5l3.5 3.5"/>
+            </svg>
+        </button>
+        <div class="current-tags" id="tags-scroll">
+            {% for tag in note_tags %}
+            <span class="pill" data-tag-id="{{ tag.pk }}" style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px 3px 10px; flex-shrink:0;">
+                {{ tag.name }}
+                <button
+                    type="button"
+                    onclick="document.getElementById('remove-tag-{{ tag.pk }}').submit()"
+                    style="background:none; border:none; cursor:pointer; padding:0; line-height:1; opacity:.6; display:flex; align-items:center;"
+                    title="Remove tag"
+                >
+                    <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <path d="M2 2l6 6M8 2l-6 6"/>
+                    </svg>
+                </button>
+            </span>
+            {% endfor %}
+        </div>
+        <button type="button" class="carousel-arrow carousel-arrow-right" id="tags-arrow-right" onclick="carouselScroll('tags-scroll', 1)" aria-label="Scroll right">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3.5 1.5L7 5l-3.5 3.5"/>
+            </svg>
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- ── Note body ── -->
+    <div class="note-body-area">
+        {{ form.description }}
+    </div>
+
+</form>
+
+<script>
+    /* ── Tag color system (mirrors note_list) ─────────────────── */
+    const PILL_COLORS = [
+        'pill-purple','pill-teal','pill-coral','pill-blue','pill-amber',
+        'pill-pink','pill-green','pill-indigo','pill-rose','pill-cyan',
+        'pill-lime','pill-emerald','pill-violet','pill-fuchsia','pill-sky',
+        'pill-orange','pill-red','pill-yellow','pill-slate','pill-gray',
+        'pill-zinc','pill-neutral','pill-stone','pill-brown','pill-gold'
+    ];
+    const _tagColorCache = {};
+    function pillClassById(tagId) {
+        const key = String(tagId);
+        if (!_tagColorCache[key]) {
+            const hash = parseInt(key, 25) || 0;
+            _tagColorCache[key] = PILL_COLORS[hash % PILL_COLORS.length];
+        }
+        return _tagColorCache[key];
+    }
+
+    /* ── Apply pill colors to select panel on load ────────────── */
+    document.querySelectorAll('#selectTagPanel .select-tag-item').forEach(function (item) {
+        const tagId = item.dataset.tagId;
+        if (tagId) item.innerHTML = '<span class="pill ' + pillClassById(tagId) + '">' + item.textContent + '</span>';
+    });
+
+    /* ── Apply pill colors to carousel tags on load ────────────── */
+    document.querySelectorAll('#tags-scroll .pill[data-tag-id]').forEach(function (pill) {
+        const tagId = pill.dataset.tagId;
+        if (tagId) pill.classList.add(pillClassById(tagId));
+    });
+
+    /* ── Existing-note helpers ────────────────────────────────── */
+    function toggleSelectPanel(e) {
+        e.stopPropagation();
+        document.getElementById('selectTagPanel').classList.toggle('open');
+    }
+    function submitAssignTag(id) {
+        const inp = document.getElementById('assign-tag-input');
+        if (!inp) return;
+        inp.value = id;
+        document.getElementById('selectTagPanel').classList.remove('open');
+        document.getElementById('main-note-form').submit();
+    }
+    document.addEventListener('click', function () {
+        const p = document.getElementById('selectTagPanel');
+        if (p) p.classList.remove('open');
+    });
+
+    /* Disable assign_tag when empty so Django never receives '' */
+    document.getElementById('main-note-form').addEventListener('submit', function () {
+        const inp = document.getElementById('assign-tag-input');
+        if (inp && !inp.value) inp.disabled = true;
+    });
+
+    /* ── Carousel scroll helper ───────────────────────────────── */
+    function carouselScroll(scrollId, dir) {
+        const el = document.getElementById(scrollId);
+        if (!el) return;
+        el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: 'smooth' });
+    }
+
+    /* ── Generic carousel arrow + fade + centering updater ───── */
+    function initCarousel(wrapId, scrollId, arrowLeftId, arrowRightId) {
+        const wrap   = document.getElementById(wrapId);
+        const scroll = document.getElementById(scrollId);
+        const arrowL = document.getElementById(arrowLeftId);
+        const arrowR = document.getElementById(arrowRightId);
+        if (!wrap || !scroll) return;
+
+        function update() {
+            const overflowing = scroll.scrollWidth > scroll.clientWidth + 2;
+            const atStart = scroll.scrollLeft <= 2;
+            const atEnd   = scroll.scrollLeft + scroll.clientWidth >= scroll.scrollWidth - 2;
+
+            const showLeft  = overflowing && !atStart;
+            const showRight = overflowing && !atEnd;
+
+            if (arrowL) arrowL.classList.toggle('visible', showLeft);
+            if (arrowR) arrowR.classList.toggle('visible', showRight);
+
+            wrap.classList.toggle('has-left',  showLeft);
+            wrap.classList.toggle('has-right', showRight);
+            wrap.classList.toggle('fade-left',  showLeft);
+            wrap.classList.toggle('fade-right', showRight);
+            scroll.classList.toggle('not-overflowing', !overflowing);
+        }
+
+        scroll.addEventListener('scroll', update, { passive: true });
+        requestAnimationFrame(update);
+        return update;
+    }
+
+    /* ── Tag carousel (existing note) ────────────────────────── */
+    (function () {
+        initCarousel('tags-wrap', 'tags-scroll', 'tags-arrow-left', 'tags-arrow-right');
+    })();
+
+    /* Auto-grow textarea */
+    document.querySelectorAll('.note-body-area textarea').forEach(function (ta) {
+        function grow() { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
+        ta.addEventListener('input', grow);
+        grow();
+    });
+</script>
+
+{% endblock content %}
