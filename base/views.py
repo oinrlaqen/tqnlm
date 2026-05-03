@@ -117,25 +117,31 @@ class NoteUpdate(LoginRequiredMixin, UpdateView):
         return context
     
     def post(self, request, *args, **kwargs):
-        if 'add_tag' in request.POST:
-            note = self.get_object()
-            tag_name = request.POST.get('new_tag_name', '').strip()
-            if tag_name:
-                tag, _ = Tag.objects.get_or_create(
-                    user=request.user,
-                    name=tag_name,
-                )
+        response = super().post(request, *args, **kwargs)
+
+        note = self.object
+        if note is None:
+            return response
+
+        # Tags to add: new names and existing tag IDs, both sent on Save
+        for name in request.POST.getlist('tags_add_name'):
+            name = name.strip()
+            if name:
+                tag, _ = Tag.objects.get_or_create(user=request.user, name=name)
                 note.tags.add(tag)
-            return redirect('note-update', pk=note.pk)
- 
-        if 'assign_tag' in request.POST:
-            note = self.get_object()
-            tag_id = request.POST.get('assign_tag')
-            tag = get_object_or_404(Tag, pk=tag_id, user=request.user)
-            note.tags.add(tag)
-            return redirect('note-update', pk=note.pk)
- 
-        return super().post(request, *args, **kwargs)
+
+        for tag_id in request.POST.getlist('tags_add_id'):
+            tag = Tag.objects.filter(pk=tag_id, user=request.user).first()
+            if tag:
+                note.tags.add(tag)
+
+        # Tags to remove: IDs of tags removed in the UI before saving
+        for tag_id in request.POST.getlist('tags_remove_id'):
+            tag = Tag.objects.filter(pk=tag_id, user=request.user).first()
+            if tag:
+                note.tags.remove(tag)
+
+        return response
 
 class NoteDelete(LoginRequiredMixin, DeleteView):
     model = Note

@@ -260,7 +260,7 @@
     <div class="tag-toolbar">
 
         <div class="tag-input-wrap">
-            <input type="text" id="new-tag-name-create" placeholder="Tag name" maxlength="20" autocomplete="off">
+            <input type="text" id="new-tag-name-create" placeholder="New tag name" maxlength="20" autocomplete="off">
         </div>
 
         <button type="button" class="toolbar-btn toolbar-btn-ghost" onclick="addPendingTag()">
@@ -512,7 +512,12 @@
 
     /* Auto-grow textarea */
     document.querySelectorAll('.note-body-area textarea').forEach(function (ta) {
-        function grow() { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
+        function grow() { 
+            const scrollY = window.scrollY;
+            ta.style.height = 'auto'; 
+            ta.style.height = ta.scrollHeight + 'px';
+            window.scrollTo({ top: scrollY, behavior: 'instant' })
+         }
         ta.addEventListener('input', grow);
         grow();
     });

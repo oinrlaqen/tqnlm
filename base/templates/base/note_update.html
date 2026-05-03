@@ -259,14 +259,7 @@
     .note-body-area textarea::placeholder { color: var(--text-hint); }
 </style>
 
-<!-- Remove-tag forms live OUTSIDE the main form to avoid nesting -->
-{% if note_tags %}
-{% for tag in note_tags %}
-<form method="POST" action="{% url 'remove-tag' object.pk tag.pk %}" id="remove-tag-{{ tag.pk }}" style="display:none;">
-    {% csrf_token %}
-</form>
-{% endfor %}
-{% endif %}
+<!-- Remove-tag forms removed: tag changes are now deferred to Save Note -->
 
 <form method="POST" action="" id="main-note-form">
     {% csrf_token %}
@@ -290,10 +283,10 @@
     <div class="tag-toolbar">
 
         <div class="tag-input-wrap">
-            <input type="text" name="new_tag_name" id="new-tag-name" placeholder="Tag name" maxlength="20" autocomplete="off">
+            <input type="text" name="new_tag_name" id="new-tag-name" placeholder="New tag name" maxlength="20" autocomplete="off">
         </div>
 
-        <button type="submit" name="add_tag" class="toolbar-btn toolbar-btn-ghost">
+        <button type="button" class="toolbar-btn toolbar-btn-ghost" onclick="uiAddNewTag()">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="8" cy="8" r="6.5"/>
                 <path d="M8 5v6M5 8h6"/>
@@ -312,11 +305,10 @@
             </button>
             <div class="select-tag-panel" id="selectTagPanel">
                 {% for tag in available_tags %}
-                <div class="select-tag-item" data-tag-id="{{ tag.id }}" onclick="submitAssignTag('{{ tag.id }}')">{{ tag.name }}</div>
+                <div class="select-tag-item" data-tag-id="{{ tag.id }}" data-tag-name="{{ tag.name }}" onclick="uiAssignExistingTag('{{ tag.id }}', '{{ tag.name }}')">{{ tag.name }}</div>
                 {% endfor %}
             </div>
         </div>
-        <input type="hidden" name="assign_tag" id="assign-tag-input" value="">
         {% endif %}
 
         <!-- ── Markdown syntax reference ── -->
@@ -354,11 +346,11 @@
         </button>
         <div class="current-tags" id="tags-scroll">
             {% for tag in note_tags %}
-            <span class="pill" data-tag-id="{{ tag.pk }}" style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px 3px 10px; flex-shrink:0;">
+            <span class="pill" data-tag-id="{{ tag.pk }}" data-tag-name="{{ tag.name }}" style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px 3px 10px; flex-shrink:0;">
                 {{ tag.name }}
                 <button
                     type="button"
-                    onclick="document.getElementById('remove-tag-{{ tag.pk }}').submit()"
+                    onclick="uiRemoveTag('{{ tag.pk }}', '{{ tag.name }}', this)"
                     style="background:none; border:none; cursor:pointer; padding:0; line-height:1; opacity:.6; display:flex; align-items:center;"
                     title="Remove tag"
                 >
@@ -403,6 +395,21 @@
         return _tagColorCache[key];
     }
 
+    /* ── Pending tag state ────────────────────────────────────── */
+    // tagsAddName  : new tag names typed by the user
+    // tagsAddId    : IDs of existing tags selected via dropdown
+    // tagsRemoveId : IDs of server-persisted tags the user removed
+    // pendingNewNames : set of names added this session (for dedup)
+    const tagsAddName   = [];
+    const tagsAddId     = [];
+    const tagsRemoveId  = [];
+    const pendingNewNames = new Set();  // lowercase for dedup
+    // IDs currently shown in the pill carousel (server + added - removed)
+    const currentTagIds = new Set(
+        [...document.querySelectorAll('#tags-scroll .pill[data-tag-id]')]
+            .map(el => el.dataset.tagId)
+    );
+
     /* ── Apply pill colors to select panel on load ────────────── */
     document.querySelectorAll('#selectTagPanel .select-tag-item').forEach(function (item) {
         const tagId = item.dataset.tagId;
@@ -415,27 +422,172 @@
         if (tagId) pill.classList.add(pillClassById(tagId));
     });
 
-    /* ── Existing-note helpers ────────────────────────────────── */
+    /* ── Render a new pill in the carousel ───────────────────────
+       tagId may be null for brand-new names not yet in the DB.    */
+    function renderPill(tagId, tagName) {
+        const wrap = document.getElementById('tags-wrap');
+        let scroll = document.getElementById('tags-scroll');
+
+        // Create the carousel wrapper if the note had no tags initially
+        if (!wrap) {
+            const newWrap = document.createElement('div');
+            newWrap.className = 'current-tags-wrap';
+            newWrap.id = 'tags-wrap';
+            newWrap.innerHTML =
+                '<button type="button" class="carousel-arrow carousel-arrow-left" id="tags-arrow-left" onclick="carouselScroll(\'tags-scroll\',-1)" aria-label="Scroll left">' +
+                    '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 1.5L3 5l3.5 3.5"/></svg>' +
+                '</button>' +
+                '<div class="current-tags" id="tags-scroll"></div>' +
+                '<button type="button" class="carousel-arrow carousel-arrow-right" id="tags-arrow-right" onclick="carouselScroll(\'tags-scroll\',1)" aria-label="Scroll right">' +
+                    '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.5L7 5l-3.5 3.5"/></svg>' +
+                '</button>';
+            // Insert before .note-body-area
+            const bodyArea = document.querySelector('.note-body-area');
+            bodyArea.parentNode.insertBefore(newWrap, bodyArea);
+            scroll = newWrap.querySelector('#tags-scroll');
+            initCarousel('tags-wrap', 'tags-scroll', 'tags-arrow-left', 'tags-arrow-right');
+        }
+
+        const colorClass = tagId ? pillClassById(tagId) : PILL_COLORS[Math.abs(tagName.split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % PILL_COLORS.length];
+        const pill = document.createElement('span');
+        pill.className = 'pill ' + colorClass;
+        if (tagId) {
+            pill.dataset.tagId  = tagId;
+            pill.dataset.serverId = tagId;   // marks it as server-persisted
+        } else {
+            pill.dataset.tagName = tagName;  // new, not yet in DB
+        }
+        pill.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:3px 8px 3px 10px;flex-shrink:0;';
+        pill.innerHTML = tagName +
+            '<button type="button" onclick="uiRemoveTag(\'' + (tagId||'') + '\',\'' + tagName.replace(/'/g,"\\'") + '\',this)"' +
+            ' style="background:none;border:none;cursor:pointer;padding:0;line-height:1;opacity:.6;display:flex;align-items:center;" title="Remove tag">' +
+            '<svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">' +
+            '<path d="M2 2l6 6M8 2l-6 6"/></svg></button>';
+        scroll.appendChild(pill);
+        requestAnimationFrame(() => {
+            const upd = initCarousel('tags-wrap', 'tags-scroll', 'tags-arrow-left', 'tags-arrow-right');
+            if (upd) upd();
+            // Always reveal the newly added tag by scrolling to the right end
+            scroll.scrollLeft = scroll.scrollWidth;
+        });
+    }
+
+    /* ── Hide a select-panel item by tagId ───────────────────── */
+    function hideSelectItem(tagId) {
+        const item = document.querySelector('#selectTagPanel [data-tag-id="' + tagId + '"]');
+        if (item) item.classList.add('hidden');
+    }
+    function showSelectItem(tagId) {
+        const item = document.querySelector('#selectTagPanel [data-tag-id="' + tagId + '"]');
+        if (item) item.classList.remove('hidden');
+    }
+
+    /* ── Add a brand-new tag name (client-side only) ─────────── */
+    function uiAddNewTag() {
+        const input = document.getElementById('new-tag-name');
+        const name  = input.value.trim();
+        if (!name) return;
+
+        // Dedup: already shown in carousel?
+        const nameLower = name.toLowerCase();
+        if (pendingNewNames.has(nameLower)) { input.value = ''; return; }
+
+        // Check if it matches an available existing tag
+        const existingItem = [...document.querySelectorAll('#selectTagPanel [data-tag-id]')]
+            .find(el => el.dataset.tagName && el.dataset.tagName.toLowerCase() === nameLower);
+
+        if (existingItem) {
+            const tagId = existingItem.dataset.tagId;
+            if (currentTagIds.has(tagId)) { input.value = ''; return; }
+            uiAssignExistingTag(tagId, existingItem.dataset.tagName);
+        } else {
+            pendingNewNames.add(nameLower);
+            tagsAddName.push(name);
+            renderPill(null, name);
+        }
+        input.value = '';
+    }
+
+    /* ── Assign an existing tag from the dropdown ────────────── */
+    function uiAssignExistingTag(tagId, tagName) {
+        document.getElementById('selectTagPanel').classList.remove('open');
+        if (currentTagIds.has(String(tagId))) return;
+
+        // If it was previously queued for removal, cancel that
+        const removeIdx = tagsRemoveId.indexOf(String(tagId));
+        if (removeIdx !== -1) {
+            tagsRemoveId.splice(removeIdx, 1);
+        } else {
+            tagsAddId.push(tagId);
+        }
+        currentTagIds.add(String(tagId));
+        hideSelectItem(tagId);
+        renderPill(tagId, tagName);
+    }
+
+    /* ── Remove a tag pill (client-side only) ────────────────── */
+    function uiRemoveTag(tagId, tagName, btn) {
+        const pill = btn.closest('.pill');
+
+        if (tagId) {
+            // Server-persisted tag — queue for removal on save
+            const addIdx = tagsAddId.indexOf(String(tagId));
+            if (addIdx !== -1) {
+                // Was added this session, just cancel the add
+                tagsAddId.splice(addIdx, 1);
+            } else {
+                tagsRemoveId.push(String(tagId));
+            }
+            currentTagIds.delete(String(tagId));
+            showSelectItem(tagId);  // make it available again in dropdown
+        } else {
+            // Brand-new (not yet in DB) — remove from pending names
+            const nameLower = tagName.toLowerCase();
+            pendingNewNames.delete(nameLower);
+            const nameIdx = tagsAddName.findIndex(n => n.toLowerCase() === nameLower);
+            if (nameIdx !== -1) tagsAddName.splice(nameIdx, 1);
+        }
+
+        pill.remove();
+        requestAnimationFrame(() => {
+            const upd = initCarousel('tags-wrap', 'tags-scroll', 'tags-arrow-left', 'tags-arrow-right');
+            if (upd) upd();
+        });
+    }
+
+    /* ── Inject hidden inputs before form submit ─────────────── */
+    document.getElementById('main-note-form').addEventListener('submit', function () {
+        const form = this;
+        tagsAddName.forEach(name => {
+            const inp = document.createElement('input');
+            inp.type = 'hidden'; inp.name = 'tags_add_name'; inp.value = name;
+            form.appendChild(inp);
+        });
+        tagsAddId.forEach(id => {
+            const inp = document.createElement('input');
+            inp.type = 'hidden'; inp.name = 'tags_add_id'; inp.value = id;
+            form.appendChild(inp);
+        });
+        tagsRemoveId.forEach(id => {
+            const inp = document.createElement('input');
+            inp.type = 'hidden'; inp.name = 'tags_remove_id'; inp.value = id;
+            form.appendChild(inp);
+        });
+    });
+
+    /* ── Select panel toggle / close on outside click ─────────── */
     function toggleSelectPanel(e) {
         e.stopPropagation();
         document.getElementById('selectTagPanel').classList.toggle('open');
-    }
-    function submitAssignTag(id) {
-        const inp = document.getElementById('assign-tag-input');
-        if (!inp) return;
-        inp.value = id;
-        document.getElementById('selectTagPanel').classList.remove('open');
-        document.getElementById('main-note-form').submit();
     }
     document.addEventListener('click', function () {
         const p = document.getElementById('selectTagPanel');
         if (p) p.classList.remove('open');
     });
 
-    /* Disable assign_tag when empty so Django never receives '' */
-    document.getElementById('main-note-form').addEventListener('submit', function () {
-        const inp = document.getElementById('assign-tag-input');
-        if (inp && !inp.value) inp.disabled = true;
+    /* ── Allow Enter key to add a tag ────────────────────────── */
+    document.getElementById('new-tag-name').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); uiAddNewTag(); }
     });
 
     /* ── Carousel scroll helper ───────────────────────────────── */
@@ -483,7 +635,12 @@
 
     /* Auto-grow textarea */
     document.querySelectorAll('.note-body-area textarea').forEach(function (ta) {
-        function grow() { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
+        function grow() { 
+            const scrollY = window.scrollY;
+            ta.style.height = 'auto'; 
+            ta.style.height = ta.scrollHeight + 'px';
+            window.scrollTo({ top: scrollY, behavior: 'instant' })
+         }
         ta.addEventListener('input', grow);
         grow();
     });
