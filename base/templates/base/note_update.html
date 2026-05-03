@@ -178,10 +178,11 @@
         scrollbar-width: none;
         -ms-overflow-style: none;
         padding-bottom: 2px;
+        justify-content: center; /* centered by default — JS removes this when overflowing */
     }
     .current-tags::-webkit-scrollbar { display: none; }
-    /* Center only when all pills fit without scrolling */
-    .current-tags.not-overflowing { justify-content: center; }
+    /* Remove centering only when pills overflow */
+    .current-tags.overflowing { justify-content: flex-start; }
 
     /* Fade edges when content overflows */
     .current-tags-wrap::before,
@@ -620,7 +621,7 @@
             wrap.classList.toggle('has-right', showRight);
             wrap.classList.toggle('fade-left',  showLeft);
             wrap.classList.toggle('fade-right', showRight);
-            scroll.classList.toggle('not-overflowing', !overflowing);
+            scroll.classList.toggle('overflowing', overflowing);
         }
 
         scroll.addEventListener('scroll', update, { passive: true });
