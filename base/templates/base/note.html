@@ -2,6 +2,23 @@
 {% block content %}
 {% load note_extras %}
 
+<style>
+  .header-actions a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    padding: 0 12px;
+    font-size: 13px;
+    line-height: 1;
+  }
+
+  .header-actions svg {
+    width: 16px;
+    height: 16px;
+  }
+</style>
+
 <!-- GitHub Markdown CSS -->
 <link rel="stylesheet"
   href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.1/github-markdown-light.min.css">
@@ -14,10 +31,7 @@
   </h2>
   <div class="header-actions" style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
     <a href="{% url 'notes' %}" class="btn-logout">
-      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align: middle; margin-right: 4px;">
-        <polyline points="15 18 9 12 15 6"/>
-      </svg>
-      Back
+      All Notes
     </a>
     <a href="{% url 'note-update' note.pk %}" class="btn-add-note">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

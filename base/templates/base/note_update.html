@@ -178,10 +178,9 @@
         scrollbar-width: none;
         -ms-overflow-style: none;
         padding-bottom: 2px;
-        justify-content: center; /* centered by default — JS removes this when overflowing */
+        justify-content: center;
     }
     .current-tags::-webkit-scrollbar { display: none; }
-    /* Remove centering only when pills overflow */
     .current-tags.overflowing { justify-content: flex-start; }
 
     /* Fade edges when content overflows */
@@ -258,7 +257,26 @@
         caret-color: var(--accent);
     }
     .note-body-area textarea::placeholder { color: var(--text-hint); }
+
+    /* ── Preview mode ─────────────────────────────────────────── */
+    #preview-area {
+        display: none;
+        padding-top: 20px;
+    }
+    #preview-area.active { display: block; }
+    .note-body-area.hidden-edit { display: none; }
+
+    /* Active state for the preview toggle button */
+    .btn-logout.preview-active {
+        background: #EEEDFE;
+        color: var(--accent);
+        border-color: rgba(83,74,183,.25);
+    }
 </style>
+
+<!-- GitHub Markdown CSS (used in preview) -->
+<link rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.1/github-markdown-light.min.css">
 
 <!-- Remove-tag forms removed: tag changes are now deferred to Save Note -->
 
@@ -276,12 +294,17 @@
             value="{% if form.title.value %}{{ form.title.value }}{% endif %}"
             autocomplete="off"
         >
-        <a href="{% url 'notes' %}" class="btn-logout" style="flex-shrink:0;">← Back</a>
+        <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+            <a href="{% url 'notes' %}" class="btn-logout">All Notes</a>
+            <button type="button" id="preview-toggle-btn" class="btn-logout" onclick="togglePreview()">
+                Preview
+            </button>
+        </div>
     </div>
 
     <!-- ── Tag toolbar ── -->
     {# ─── EXISTING NOTE: full tag management ─── #}
-    <div class="tag-toolbar">
+    <div class="tag-toolbar" id="tag-toolbar">
 
         <div class="tag-input-wrap">
             <input type="text" name="new_tag_name" id="new-tag-name" placeholder="New tag name" maxlength="20" autocomplete="off">
@@ -371,13 +394,51 @@
     {% endif %}
 
     <!-- ── Note body ── -->
-    <div class="note-body-area">
+    <div class="note-body-area" id="edit-area">
         {{ form.description }}
+    </div>
+
+    <!-- ── Preview area ── -->
+    <div id="preview-area">
+        <article class="markdown-body" id="preview-content" style="background: transparent;"></article>
     </div>
 
 </form>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 <script>
+    /* ── Preview toggle ───────────────────────────────────────── */
+    let isPreview = false;
+
+    function togglePreview() {
+        isPreview = !isPreview;
+        const editArea    = document.getElementById('edit-area');
+        const previewArea = document.getElementById('preview-area');
+        const tagToolbar  = document.getElementById('tag-toolbar');
+        const tagsWrap    = document.getElementById('tags-wrap');
+        const btn         = document.getElementById('preview-toggle-btn');
+
+        if (isPreview) {
+            const ta = editArea.querySelector('textarea');
+            const md = ta ? ta.value : '';
+            document.getElementById('preview-content').innerHTML =
+                marked.parse(md || '*Nothing to preview yet.*');
+            editArea.classList.add('hidden-edit');
+            previewArea.classList.add('active');
+            tagToolbar.style.display = 'none';
+            if (tagsWrap) tagsWrap.style.display = 'none';
+            btn.classList.add('preview-active');
+            btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit';
+        } else {
+            editArea.classList.remove('hidden-edit');
+            previewArea.classList.remove('active');
+            tagToolbar.style.display = '';
+            if (tagsWrap) tagsWrap.style.display = '';
+            btn.classList.remove('preview-active');
+            btn.innerHTML = 'Preview';
+        }
+    }
+
     /* ── Tag color system (mirrors note_list) ─────────────────── */
     const PILL_COLORS = [
         'pill-purple','pill-teal','pill-coral','pill-blue','pill-amber',
@@ -397,15 +458,10 @@
     }
 
     /* ── Pending tag state ────────────────────────────────────── */
-    // tagsAddName  : new tag names typed by the user
-    // tagsAddId    : IDs of existing tags selected via dropdown
-    // tagsRemoveId : IDs of server-persisted tags the user removed
-    // pendingNewNames : set of names added this session (for dedup)
     const tagsAddName   = [];
     const tagsAddId     = [];
     const tagsRemoveId  = [];
-    const pendingNewNames = new Set();  // lowercase for dedup
-    // IDs currently shown in the pill carousel (server + added - removed)
+    const pendingNewNames = new Set();
     const currentTagIds = new Set(
         [...document.querySelectorAll('#tags-scroll .pill[data-tag-id]')]
             .map(el => el.dataset.tagId)
@@ -429,7 +485,6 @@
         const wrap = document.getElementById('tags-wrap');
         let scroll = document.getElementById('tags-scroll');
 
-        // Create the carousel wrapper if the note had no tags initially
         if (!wrap) {
             const newWrap = document.createElement('div');
             newWrap.className = 'current-tags-wrap';
@@ -442,7 +497,6 @@
                 '<button type="button" class="carousel-arrow carousel-arrow-right" id="tags-arrow-right" onclick="carouselScroll(\'tags-scroll\',1)" aria-label="Scroll right">' +
                     '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.5L7 5l-3.5 3.5"/></svg>' +
                 '</button>';
-            // Insert before .note-body-area
             const bodyArea = document.querySelector('.note-body-area');
             bodyArea.parentNode.insertBefore(newWrap, bodyArea);
             scroll = newWrap.querySelector('#tags-scroll');
@@ -454,9 +508,9 @@
         pill.className = 'pill ' + colorClass;
         if (tagId) {
             pill.dataset.tagId  = tagId;
-            pill.dataset.serverId = tagId;   // marks it as server-persisted
+            pill.dataset.serverId = tagId;
         } else {
-            pill.dataset.tagName = tagName;  // new, not yet in DB
+            pill.dataset.tagName = tagName;
         }
         pill.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:3px 8px 3px 10px;flex-shrink:0;';
         pill.innerHTML = tagName +
@@ -468,7 +522,6 @@
         requestAnimationFrame(() => {
             const upd = initCarousel('tags-wrap', 'tags-scroll', 'tags-arrow-left', 'tags-arrow-right');
             if (upd) upd();
-            // Always reveal the newly added tag by scrolling to the right end
             scroll.scrollLeft = scroll.scrollWidth;
         });
     }
@@ -489,11 +542,9 @@
         const name  = input.value.trim();
         if (!name) return;
 
-        // Dedup: already shown in carousel?
         const nameLower = name.toLowerCase();
         if (pendingNewNames.has(nameLower)) { input.value = ''; return; }
 
-        // Check if it matches an available existing tag
         const existingItem = [...document.querySelectorAll('#selectTagPanel [data-tag-id]')]
             .find(el => el.dataset.tagName && el.dataset.tagName.toLowerCase() === nameLower);
 
@@ -514,7 +565,6 @@
         document.getElementById('selectTagPanel').classList.remove('open');
         if (currentTagIds.has(String(tagId))) return;
 
-        // If it was previously queued for removal, cancel that
         const removeIdx = tagsRemoveId.indexOf(String(tagId));
         if (removeIdx !== -1) {
             tagsRemoveId.splice(removeIdx, 1);
@@ -531,18 +581,15 @@
         const pill = btn.closest('.pill');
 
         if (tagId) {
-            // Server-persisted tag — queue for removal on save
             const addIdx = tagsAddId.indexOf(String(tagId));
             if (addIdx !== -1) {
-                // Was added this session, just cancel the add
                 tagsAddId.splice(addIdx, 1);
             } else {
                 tagsRemoveId.push(String(tagId));
             }
             currentTagIds.delete(String(tagId));
-            showSelectItem(tagId);  // make it available again in dropdown
+            showSelectItem(tagId);
         } else {
-            // Brand-new (not yet in DB) — remove from pending names
             const nameLower = tagName.toLowerCase();
             pendingNewNames.delete(nameLower);
             const nameIdx = tagsAddName.findIndex(n => n.toLowerCase() === nameLower);
