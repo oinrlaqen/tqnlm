@@ -69,7 +69,6 @@ class NoteCreate(LoginRequiredMixin, CreateView):
     model = Note
     form_class = NoteForm
     template_name = 'base/note_create.html'
-    success_url = reverse_lazy('notes')
 
     def get_success_url(self):
         return reverse('note-update', kwargs={'pk': self.object.pk})
@@ -102,7 +101,9 @@ class NoteUpdate(LoginRequiredMixin, UpdateView):
     model = Note
     form_class = NoteForm
     template_name = 'base/note_update.html'
-    success_url = reverse_lazy('notes')
+
+    def get_success_url(self):
+        return reverse('note-update', kwargs={'pk': self.object.pk})
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

@@ -3,7 +3,7 @@
  
 <div class="header-bar">
     <h2>Delete Note</h2>
-    <a href="{% url 'notes' %}" class="btn-logout">Go Back</a>
+    <a href="{% url 'notes' %}" class="btn-logout">Back</a>
 </div>
  
 <div style="
@@ -55,7 +55,12 @@
         </svg>
         Delete Note
     </button>
-    <a href="{% url 'notes' %}" class="btn-logout">Cancel</a>
+    <a href="{% url 'notes' %}" class="btn-logout" style="
+        height:36px; padding: 0 16px;
+        display: inline-flex;
+        align-items: center;">
+        Cancel
+    </a>
 </form>
  
 {% endblock content %}

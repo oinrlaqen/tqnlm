@@ -93,7 +93,7 @@
     /* ── Markdown info button ─────────────────────────────────── */
     .toolbar-btn-info {
         height: 36px;
-        width: 36px;
+        width: 50px;
         min-width: unset;
         padding: 0;
         display: inline-flex;
@@ -246,11 +246,6 @@
     .note-body-area.hidden-edit { display: none; }
 
     /* Active state for the preview toggle button */
-    .btn-logout.preview-active {
-        background: #EEEDFE;
-        color: var(--accent);
-        border-color: rgba(83,74,183,.25);
-    }
 </style>
 
 <!-- GitHub Markdown CSS (used in preview) -->
@@ -272,7 +267,7 @@
             autocomplete="off"
         >
         <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-            <a href="{% url 'notes' %}" class="btn-logout">All Notes</a>
+            <a href="{% url 'notes' %}" class="btn-logout" id="all-notes-btn">All Notes</a>
             <button type="button" id="preview-toggle-btn" class="btn-logout" onclick="togglePreview()">
                 Preview
             </button>
@@ -287,14 +282,6 @@
             <input type="text" id="new-tag-name-create" placeholder="New tag name" maxlength="20" autocomplete="off">
         </div>
 
-        <button type="button" class="toolbar-btn toolbar-btn-ghost" onclick="addPendingTag()">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="8" cy="8" r="6.5"/>
-                <path d="M8 5v6M5 8h6"/>
-            </svg>
-            Add
-        </button>
-
         {% if user_tags %}
         <div class="select-tag-wrap">
             <button type="button" id="selectTagBtnCreate" class="toolbar-btn toolbar-btn-ghost" onclick="toggleSelectPanelCreate(event)">
@@ -302,7 +289,7 @@
                     <path d="M2 2h5.5l6.5 6.5-5.5 5.5L2 7.5V2z"/>
                     <circle cx="5" cy="5" r="1" fill="currentColor" stroke="none"/>
                 </svg>
-                Select
+                Tags
             </button>
             <div class="select-tag-panel" id="selectTagPanelCreate">
                 {% for tag in user_tags %}
@@ -318,22 +305,30 @@
             target="_blank"
             rel="noopener noreferrer"
             class="toolbar-btn-info"
-            title="Markdown Cheatsheet"
+            title="Markdown Syntax"
         >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="8" cy="8" r="6.5"/>
-                <path d="M8 7.5v4"/>
-                <circle cx="8" cy="5" r=".6" fill="currentColor" stroke="none"/>
-            </svg>
+            <svg width="30" height="20" viewBox="0 0 208 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+                <!-- M (clean + readable) -->
+                <path d="M48 92V36L80 72L112 36V92" 
+                        stroke="#1a1a1a" 
+                        stroke-width="12" 
+                        stroke-linecap="round" 
+                        stroke-linejoin="round" 
+                        fill="none"/>
+
+                <!-- subtle markdown hint: code bracket -->
+                <path d="M140 40L160 64L140 88" 
+                        stroke="#1a1a1a" 
+                        stroke-width="10" 
+                        stroke-linecap="round" 
+                        stroke-linejoin="round" 
+                        fill="none"/>
+                </svg>
         </a>
 
         <button type="submit" class="toolbar-btn toolbar-btn-accent">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M13.5 9.5v4h-11v-11h4"/>
-                <path d="M9 2h5v5"/>
-                <path d="M14 2L7 9"/>
-            </svg>
-            Save Note
+            Save
         </button>
     </div>
 
@@ -387,13 +382,15 @@
             previewArea.classList.add('active');
             tagToolbar.style.display  = 'none';
             pendingWrap.style.display = 'none';
+            document.getElementById('all-notes-btn').style.display = 'none';
             btn.classList.add('preview-active');
-            btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit';
+            btn.innerHTML = 'Edit';
         } else {
             editArea.classList.remove('hidden-edit');
             previewArea.classList.remove('active');
             tagToolbar.style.display  = '';
             pendingWrap.style.display = '';
+            document.getElementById('all-notes-btn').style.display = '';
             btn.classList.remove('preview-active');
             btn.innerHTML = 'Preview';
         }
