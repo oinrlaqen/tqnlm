@@ -234,6 +234,7 @@
         line-height: 1.65;
         min-height: 360px;
         caret-color: var(--accent);
+        overflow: hidden;
     }
     .note-body-area textarea::placeholder { color: var(--text-hint); }
 
@@ -295,6 +296,7 @@
                 {% for tag in user_tags %}
                 <div class="select-tag-item" data-tag-name="{{ tag.name|escape }}" onclick="addPendingTagByName(this.dataset.tagName)">{{ tag.name }}</div>
                 {% endfor %}
+                <div id="no-tags-msg-create" style="display:none; padding:6px 8px; font-size:13px; color:var(--text-hint);">No tags to select</div>
             </div>
         </div>
         {% endif %}
@@ -318,7 +320,7 @@
                         fill="none"/>
 
                 <!-- subtle markdown hint: code bracket -->
-                <path d="M140 40L160 64L140 88" 
+                <path d="M160 40L160 88M136 64L160 88L184 64" 
                         stroke="#1a1a1a" 
                         stroke-width="10" 
                         stroke-linecap="round" 
@@ -342,7 +344,7 @@
         <div class="pending-tags" id="pending-tags-row"></div>
         <button type="button" class="carousel-arrow carousel-arrow-right" id="pending-arrow-right" onclick="carouselScroll('pending-tags-row', 1)" aria-label="Scroll right">
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3.5 1.5L7 -3.5"/>
+                <path d="M3.5 1.5L7 5l-3.5 3.5"/>
             </svg>
         </button>
     </div>
@@ -475,14 +477,8 @@
             item.classList.toggle('hidden', hidden);
             if (!hidden) allHidden = false;
         });
-        const btn = document.getElementById('selectTagBtnCreate');
-        if (btn) {
-            btn.style.display = (items.length > 0 && allHidden) ? 'none' : '';
-            if (allHidden) {
-                const panel = document.getElementById('selectTagPanelCreate');
-                if (panel) panel.classList.remove('open');
-            }
-        }
+        const msg = document.getElementById('no-tags-msg-create');
+        if (msg) msg.style.display = allHidden ? 'block' : 'none';
     }
 
     function addPendingTag() {

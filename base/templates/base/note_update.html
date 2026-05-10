@@ -262,6 +262,7 @@
         line-height: 1.65;
         min-height: 360px;
         caret-color: var(--accent);
+        overflow: hidden;
     }
     .note-body-area textarea::placeholder { color: var(--text-hint); }
 
@@ -323,6 +324,7 @@
                 {% for tag in available_tags %}
                 <div class="select-tag-item" data-tag-id="{{ tag.id }}" data-tag-name="{{ tag.name }}" onclick="uiAssignExistingTag('{{ tag.id }}', '{{ tag.name }}')">{{ tag.name }}</div>
                 {% endfor %}
+                <div id="no-tags-msg" style="display:none; padding:6px 8px; font-size:13px; color:var(--text-hint)">No tags to select</div>
             </div>
         </div>
         {% endif %}
@@ -346,7 +348,7 @@
                         fill="none"/>
 
                 <!-- subtle markdown hint: code bracket -->
-                <path d="M140 40L160 64L140 88" 
+                <path d="M160 40L160 88M136 64L160 88L184 64" 
                         stroke="#1a1a1a" 
                         stroke-width="10" 
                         stroke-linecap="round" 
@@ -572,10 +574,17 @@
     function hideSelectItem(tagId) {
         const item = document.querySelector('#selectTagPanel [data-tag-id="' + tagId + '"]');
         if (item) item.classList.add('hidden');
+
+        const anyVisible = document.querySelectorAll('#selectTagPanel .select-tag-item:not(.hidden)').length > 0;
+        const msg = document.getElementById('no-tags-msg')
+        if (msg) msg.style.display = anyVisible ? 'none' : 'block';
     }
     function showSelectItem(tagId) {
         const item = document.querySelector('#selectTagPanel [data-tag-id="' + tagId + '"]');
         if (item) item.classList.remove('hidden');
+
+        const msg = document.getElementById('no-tags-msg');
+        if (msg) msg.style.display = 'none';
     }
 
     /* ── Add a brand-new tag name (client-side only) ─────────── */

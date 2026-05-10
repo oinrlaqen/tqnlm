@@ -132,7 +132,7 @@
     {% if user.is_authenticated %}
     <form method="POST" action="{% url 'logout' %}" style="margin:0">
         {% csrf_token %}
-        <button type="submit" class="btn-logout">Logout</button>
+        <button type="submit" class="btn-logout">Sign out</button>
     </form>
     {% else %}
     <a href="{% url 'login' %}" class="btn-logout" style="display:inline-flex;align-items:center;">Login</a>
@@ -240,11 +240,7 @@
 
     <!-- Add note -->
     <a href="{% url 'note-create' %}" class="btn-add-note">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2">
-            <line x1="8" y1="3" x2="8" y2="13"/>
-            <line x1="3" y1="8" x2="13" y2="8"/>
-        </svg>
-        Add note
+        New Note
     </a>
 </div>
 
