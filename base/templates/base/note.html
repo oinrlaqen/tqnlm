@@ -52,7 +52,7 @@
     <a href="{% url 'notes' %}" class="btn-logout">
       All Notes
     </a>
-    <a href="{% url 'note-update' note.pk %}" class="btn-edit-note">
+    <a href="{% url 'note-update' note.tokens.first.token %}" class="btn-edit-note">
       Edit
     </a>
   </div>

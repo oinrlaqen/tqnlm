@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import Note, User
+from .models import Note, User, NoteToken
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
@@ -18,3 +18,4 @@ class UserAdmin(BaseUserAdmin):
     search_fields = ['email']
 
 admin.site.register(Note)
+admin.site.register(NoteToken)

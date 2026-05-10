@@ -12,11 +12,13 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 
-from .models import Note, Tag
+from .models import Note, Tag, NoteToken
 from .forms import EmailLoginForm, EmailRegisterForm, NoteForm
 
 from django.http import HttpResponse
 from django.http import JsonResponse
+
+from django.core.exceptions import PermissionDenied
 
 class CustomLoginView(LoginView):
     template_name = 'base/login.html'
@@ -65,8 +67,12 @@ class NoteDetail(LoginRequiredMixin, DetailView):
     context_object_name = 'note'
     template_name = 'base/note.html'
 
-    def get_queryset(self):
-        return Note.objects.filter(user=self.request.user)
+    def get_object(self):
+        token = get_object_or_404(NoteToken, token=self.kwargs['token'])
+        note = token.note
+        if note.user != self.request.user:
+            raise PermissionDenied
+        return note
 
 class NoteCreate(LoginRequiredMixin, CreateView):
     model = Note
@@ -74,7 +80,11 @@ class NoteCreate(LoginRequiredMixin, CreateView):
     template_name = 'base/note_create.html'
 
     def get_success_url(self):
-        return reverse('note-update', kwargs={'pk': self.object.pk})
+        token = NoteToken.objects.create(
+            note=self.object, 
+            token=NoteToken.generate_token()
+        )
+        return reverse('note-update', kwargs={'token': token.token})
 
     def form_valid(self, form):
         form.instance.user = self.request.user
@@ -106,10 +116,15 @@ class NoteUpdate(LoginRequiredMixin, UpdateView):
     template_name = 'base/note_update.html'
 
     def get_success_url(self):
-        return reverse('note-update', kwargs={'pk': self.object.pk})
+        token = self.object.tokens.first()
+        return reverse('note-update', kwargs={'token': token.token})
     
-    def get_queryset(self):
-        return Note.objects.filter(user=self.request.user)
+    def get_object(self):
+        token = get_object_or_404(NoteToken, token=self.kwargs['token'])
+        note = token.note
+        if note.user != self.request.user:
+            raise PermissionDenied
+        return note
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -155,16 +170,23 @@ class NoteDelete(LoginRequiredMixin, DeleteView):
     context_object_name = 'note'
     success_url = reverse_lazy('notes')
 
-    def get_queryset(self):
-        return Note.objects.filter(user=self.request.user)
+    def get_object(self):
+        token = get_object_or_404(NoteToken, token=self.kwargs['token'])
+        note = token.note
+        if note.user != self.request.user:
+            raise PermissionDenied
+        return note
 
 @login_required
-def remove_tag_from_note(request, note_pk, tag_pk):
+def remove_tag_from_note(request, token, tag_pk):
     if request.method == 'POST':
-        note = get_object_or_404(Note, pk=note_pk, user=request.user)
+        note_token = get_object_or_404(NoteToken, token=token)
+        note = note_token.note
+        if note.user != request.user:
+            raise PermissionDenied
         tag = get_object_or_404(Tag, pk=tag_pk, user=request.user)
         note.tags.remove(tag)
-    return redirect('note-update', pk=note_pk)
+    return redirect('note-update', token=token)
 
 @login_required
 def delete_tag(request, tag_pk):

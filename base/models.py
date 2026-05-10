@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 
+import secrets
+
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
@@ -48,3 +50,11 @@ class Note(models.Model):
     
     class Meta:
         ordering = ['created']
+
+class NoteToken(models.Model):
+    token = models.CharField(max_length=20, unique=True, db_index=True)
+    note = models.ForeignKey(Note, on_delete=models.CASCADE, related_name='tokens')
+    
+    @staticmethod
+    def generate_token():
+        return secrets.token_urlsafe(10)

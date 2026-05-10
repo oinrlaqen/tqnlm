@@ -264,9 +264,9 @@
             tags: [{% for tag in note.tags.all %}{ id: {{ tag.pk }}, name: "{{ tag.name|escapejs }}" }{% if not forloop.last %},{% endif %}{% endfor %}],
             created:   "{{ note.created|date:'c' }}",
             updatedAt: "{{ note.updated_at|date:'c' }}",
-            urlView:   "{% url 'note' note.pk %}",
-            urlEdit:   "{% url 'note-update' note.pk %}",
-            urlDelete: "{% url 'note-delete' note.pk %}"
+            urlView:   "{% url 'note' note.tokens.first.token %}",
+            urlEdit:   "{% url 'note-update' note.tokens.first.token %}",
+            urlDelete: "{% url 'note-delete' note.tokens.first.token %}"
         }{% if not forloop.last %},{% endif %}
         {% endfor %}
     ];
