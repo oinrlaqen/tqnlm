@@ -65,6 +65,9 @@ class NoteDetail(LoginRequiredMixin, DetailView):
     context_object_name = 'note'
     template_name = 'base/note.html'
 
+    def get_queryset(self):
+        return Note.objects.filter(user=self.request.user)
+
 class NoteCreate(LoginRequiredMixin, CreateView):
     model = Note
     form_class = NoteForm
@@ -104,6 +107,9 @@ class NoteUpdate(LoginRequiredMixin, UpdateView):
 
     def get_success_url(self):
         return reverse('note-update', kwargs={'pk': self.object.pk})
+    
+    def get_queryset(self):
+        return Note.objects.filter(user=self.request.user)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -148,6 +154,9 @@ class NoteDelete(LoginRequiredMixin, DeleteView):
     model = Note
     context_object_name = 'note'
     success_url = reverse_lazy('notes')
+
+    def get_queryset(self):
+        return Note.objects.filter(user=self.request.user)
 
 @login_required
 def remove_tag_from_note(request, note_pk, tag_pk):
