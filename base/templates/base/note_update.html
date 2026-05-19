@@ -296,8 +296,8 @@
             autocomplete="off"
         >
         <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-            <a href="{% url 'notes' %}" class="btn-logout" id="all-notes-btn">All Notes</a>
-            <button type="button" id="preview-toggle-btn" class="btn-logout" onclick="togglePreview()">
+            <a href="{% url 'notes' %}" class="btn-ghost" id="all-notes-btn">All Notes</a>
+            <button type="button" id="preview-toggle-btn" class="btn-ghost" onclick="togglePreview()">
                 Preview
             </button>
         </div>
@@ -424,7 +424,7 @@
             const ta = editArea.querySelector('textarea');
             const md = ta ? ta.value : '';
             document.getElementById('preview-content').innerHTML =
-                marked.parse(md || '*Nothing to preview yet.*');
+                marked.parse(md || '*Nothing to preview yet*');
             editArea.classList.add('hidden-edit');
             previewArea.classList.add('active');
             tagToolbar.style.display = 'none';

@@ -49,7 +49,7 @@
     {{ note.title }}
   </h2>
   <div class="header-actions" style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-    <a href="{% url 'notes' %}" class="btn-logout">
+    <a href="{% url 'notes' %}" class="btn-ghost">
       All Notes
     </a>
     <a href="{% url 'note-update' note.tokens.first.token %}" class="btn-edit-note">

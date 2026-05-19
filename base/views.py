@@ -20,6 +20,10 @@ from django.http import JsonResponse
 
 from django.core.exceptions import PermissionDenied
 
+import io
+import zipfile
+import json as json_module
+
 class CustomLoginView(LoginView):
     template_name = 'base/login.html'
     authentication_form = EmailLoginForm
@@ -223,3 +227,40 @@ def lockout_response(request, credentials, *args, **kwargs):
         "Too many failed login attempts. Please try again later",
         status=403
     )
+
+@login_required
+def export_notes(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        body = json_module.loads(request.body)
+        pks = body.get('ids', [])
+    except (ValueError, KeyError):
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+    
+    if not isinstance(pks, list) or not pks:
+        return JsonResponse({'error': 'No notes selected'}, status=400)
+    
+    notes = Note.objects.filter(pk__in=pks, user=request.user)
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        seen_names = {}
+        for note in notes:
+            md_content = f"# {note.title}\n\n{note.description or ''}"
+
+            safe_name = "".join(c if c.isalnum() or c in " -_" else "_" for c in note.title).strip() or f"note_{note.pk}"
+            safe_name = safe_name[:60]
+            count = seen_names.get(safe_name, 0)
+            seen_names[safe_name] = count + 1
+            filename = f"{safe_name}.md" if count == 0 else f"{safe_name}_{count}.md"
+
+            zf.writestr(filename, md_content.encode('utf-8'))
+
+    buffer.seek(0)
+    response = HttpResponse(buffer.read(), content_type='application/zip')
+    response['Content-Disposition'] = 'attachment; filename="notes.json"'
+    response['Cache-Control'] = 'no-store'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response

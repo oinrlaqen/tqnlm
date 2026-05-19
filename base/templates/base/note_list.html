@@ -123,6 +123,44 @@
         transform: translateX(-50%) translateY(0);
     }
     #toast.toast-error { background: var(--danger, #993C1D); }
+
+    /* Settings Dropdown */
+
+    .settings-item {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 7px 12px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 13px;
+        font-family: var(--font-sans);
+        color: var(--text-primary);
+        border-radius: var(--radius-sm, 4px);
+        transition: background 0.12s;
+    }
+    .settings-item:hover {
+        background: var(--surface-hover, rgba(0,0,0,.06));
+    }
+    .settings-item--danger {
+        color: var(--danger, #993C1D);
+    }
+    .settings-item--danger:hover {
+        background: rgba(153, 60, 29, 0.08);
+    }
+    .settings-divider {
+        height: 1px;
+        background: var(--border-mid);
+        margin: 4px 0;
+    }
+
+    /* Download List */
+
+    .dl-row { transition: background .12s, border-color .12s; }
+    .dl-row:hover { background: #f5f4f0; }
+    .dl-row.selected { background: #eeedfe; }
+
 </style>
  
 <!-- Header -->
@@ -130,10 +168,21 @@
     <h2>All Notes</h2>
  
     {% if user.is_authenticated %}
-    <form method="POST" action="{% url 'logout' %}" style="margin:0">
-        {% csrf_token %}
-        <button type="submit" class="btn-logout">Sign out</button>
-    </form>
+    <div style="position:relative;">
+        <button type="button" class="btn-ghost" id="settingsBtn">Settings</button>
+        <div id="settingsDropdown" style="display:none; position:absolute; right:0; top:calc(100% + 6px); background:var(--surface); border:1px solid var(--border-mid); border-radius:var(--radius-md,8px); box-shadow:0 4px 16px rgba(0,0,0,.12); min-width:172px; z-index:200; padding:4px;">
+        
+            <button type="button" class="settings-item" onclick="openDownloadModal(); document.getElementById('settingsDropdown').style.display='none';">Download Notes</button>
+        
+            <div class="settings-divider"></div>
+
+            <form method="POST" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="settings-item settings-item--danger">Sign Out</button>
+            </form>
+
+        </div>
+    </div>
     {% else %}
     <a href="{% url 'login' %}" class="btn-logout" style="display:inline-flex;align-items:center;">Login</a>
     {% endif %}
@@ -151,7 +200,7 @@
         <input
             type="text"
             id="searchInput"
-            placeholder="Search notes…"
+            placeholder="Search notes"
             value="{{ search_input }}"
             autocomplete="off"
         >
@@ -234,6 +283,28 @@
             <div style="display:flex;justify-content:flex-end;gap:8px;">
                 <button onclick="confirmRenameTag()" style="height:32px;padding:0 14px;font-size:13px;font-weight:500;font-family:var(--font-sans);border:none;border-radius:var(--radius-md);background:var(--accent,#6c63ff);color:#fff;cursor:pointer;">Rename</button>
                 <button onclick="closeRenameModal()" style="height:32px;padding:0 14px;font-size:13px;font-family:var(--font-sans);border:0.5px solid var(--border-mid);border-radius:var(--radius-md);background:transparent;color:var(--text-secondary);cursor:pointer;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Download Notes Modal -->
+    <div id="downloadModal" onclick="if(event.target===this)closeDownloadModal();" style="display:none; position:fixed; inset:0; z-index:500; background:rgba(0,0,0,.32); align-items:center; justify-content:center;">
+        <div style="background:var(--surface); border:0.5px solid var(--border-mid); border-radius:var(--radius-lg); padding:24px; width:100%; max-width:420px; margin:1rem; display:flex; flex-direction:column; gap:16px; height:540px;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:20px; font-weight:600; color:var(--text-primary);">Download Notes</span>
+            </div>
+
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                <button type="button" id="selectAllBtn" onclick="toggleSelectAll()" style="flex-shrink:0; height:32px; padding:0 14px; font-size:13px; font-weight:500; font-family:var(--font-sans); border:none; border-radius:var(--radius-md); cursor:pointer; background:#EEEDFE; color:var(--accent); transition:background .15s;">Select All</button>
+                <input type="text" id="dlFilterInput" oninput="renderDownloadList()" placeholder="Search notes" autocomplete="off"
+                    style="flex:1; height:32px; padding:0 10px; font-size:13px; font-family:var(--font-sans); border:0.5px solid var(--border-mid); border-radius:var(--radius-md); background:var(--surface); color:var(--text-primary); outline:none; min-width:0;">
+            </div>
+
+            <div id="downloadNoteList" style="display:flex; flex-direction:column; gap:6px; overflow-y:auto; flex:1; min-height:0; height:0;"></div>
+
+            <div style="display:flex; justify-content:flex-end; gap:8px; padding-top:14px; border-top:0.5px solid var(--border);">
+                <button onclick="confirmDownload()" id="downloadConfirmBtn" style="height:32px;padding:0 16px;font-size:13px;font-weight:500;font-family:var(--font-sans);border:none;border-radius:var(--radius-md);background:var(--accent);color:#fff;cursor:pointer;">Download</button>
+                <button onclick="closeDownloadModal()" style="height:32px;padding:0 14px;font-size:13px;font-family:var(--font-sans);border:0.5px solid var(--border-mid);border-radius:var(--radius-md);background:transparent;color:var(--text-secondary);cursor:pointer;">Cancel</button>
             </div>
         </div>
     </div>
@@ -584,7 +655,7 @@
 
 
     document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') { closeDeleteModal(); closeRenameModal(); }
+        if (e.key === 'Escape') { closeDeleteModal(); closeRenameModal(); closeDownloadModal(); }
     });
     
  
@@ -672,6 +743,139 @@
                 </div>
             </div>
         `).join('');
+    }
+
+    // ── Settings dropdown toggle ──────────────────────────────────────────────
+    
+    document.addEventListener('click', function(e) {
+        const btn = document.getElementById('settingsBtn');
+        const dropdown = document.getElementById('settingsDropdown');
+        if (!dropdown) return;
+        if (btn && btn.contains(e.target)) {
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        } else {
+            dropdown.style.display = 'none';
+        }
+    });
+
+    // ── Download modal ────────────────────────────────────────────────────────
+
+    const EXPORT_URL = "{% url 'export_notes' %}";
+    let downloadSelected = new Set();
+
+    function openDownloadModal() {
+        downloadSelected = new Set();
+        allSelected = false;      
+        const filterInput = document.getElementById('dlFilterInput');
+        if (filterInput) filterInput.value = '';                              
+        const btn = document.getElementById('selectAllBtn');
+        if (btn) { btn.textContent = 'Select All'; btn.style.background = '#EEEDFE'; btn.style.color = 'var(--accent)'; }
+        renderDownloadList();
+        document.getElementById('downloadModal').style.display = 'flex';
+    }
+
+    function closeDownloadModal() {
+        document.getElementById('downloadModal').style.display = 'none';
+    }
+
+    function renderDownloadList() {
+        const list = document.getElementById('downloadNoteList');
+        if (!notes.length) {
+            list.innerHTML = '<div style="font-size:13px;color:var(--text-hint);text-align:center;padding:12px 0;">No notes yet</div>';
+            return;
+        }
+        const q = (document.getElementById('dlFilterInput')?.value || '').toLowerCase().trim();
+        const filtered = q ? notes.filter(n => n.title.toLowerCase().includes(q)) : notes;
+        if (!filtered.length) {
+            list.innerHTML = '<div style="font-size:13px;color:var(--text-hint);text-align:center;padding:12px 0;">No notes match</div>';
+            return;
+        }
+        list.innerHTML = filtered.map(n => `
+            <div onclick="toggleDownloadNote(${n.id})" id="dl-row-${n.id}" class="dl-row${downloadSelected.has(n.id) ? ' selected' : ''}"
+                style="display:flex; align-items:center; padding:8px 10px; border-radius:var(--radius-md); cursor:pointer; border:0.5px solid var(--border);">
+                <span style="font-size:13px; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escHtml(n.title)}</span>
+            </div>
+        `).join('');
+        const btn = document.getElementById('selectAllBtn');
+        if (btn) {
+            const q2 = (document.getElementById('dlFilterInput')?.value || '').toLowerCase().trim();
+            const visibleNotes = q2 ? notes.filter(n => n.title.toLowerCase().includes(q2)) : notes;
+            const allVisibleSelected = visibleNotes.length > 0 && visibleNotes.every(n => downloadSelected.has(n.id));
+            btn.style.background = allVisibleSelected ? 'var(--accent)' : '#EEEDFE';
+            btn.style.color = allVisibleSelected ? '#fff' : 'var(--accent)';
+        }
+    }
+
+    function toggleDownloadNote(id) {
+        const row = document.getElementById(`dl-row-${id}`);
+        if (downloadSelected.has(id)) {
+            downloadSelected.delete(id);
+            row.classList.remove('selected');
+        } else {
+            downloadSelected.add(id);
+            row.classList.add('selected');
+        }
+        const q = (document.getElementById('dlFilterInput')?.value || '').toLowerCase().trim();
+        const visibleNotes = q ? notes.filter(n => n.title.toLowerCase().includes(q)) : notes;
+        const allVisibleSelected = visibleNotes.length > 0 && visibleNotes.every(n => downloadSelected.has(n.id));
+        allSelected = downloadSelected.size === notes.length;
+        const btn = document.getElementById('selectAllBtn');
+        if (btn) {
+            btn.style.background = allVisibleSelected ? 'var(--accent)' : '#EEEDFE';
+            btn.style.color = allVisibleSelected ? '#fff' : 'var(--accent)';
+        }
+    }
+
+    let allSelected = false;
+
+    function toggleSelectAll() {
+        const btn = document.getElementById('selectAllBtn');
+        const q = (document.getElementById('dlFilterInput')?.value || '').toLowerCase().trim();
+        const visibleNotes = q ? notes.filter(n => n.title.toLowerCase().includes(q)) : notes;
+        const allVisibleSelected = visibleNotes.length > 0 && visibleNotes.every(n => downloadSelected.has(n.id));
+        if (allVisibleSelected) {
+            visibleNotes.forEach(n => {
+                downloadSelected.delete(n.id);
+                const row = document.getElementById(`dl-row-${n.id}`);
+                if (row) row.classList.remove('selected');
+            });
+            btn.style.background = '#EEEDFE';
+            btn.style.color = 'var(--accent)';
+        } else {
+            visibleNotes.forEach(n => {
+                downloadSelected.add(n.id);
+                const row = document.getElementById(`dl-row-${n.id}`);
+                if (row) row.classList.add('selected');
+            });
+            btn.style.background = 'var(--accent)';
+            btn.style.color = '#fff';
+        }
+        allSelected = downloadSelected.size === notes.length;
+    }
+
+    async function confirmDownload() {
+        if (!downloadSelected.size) { showToast('No notes selected', true); return; }
+        try {
+            const res = await fetch(EXPORT_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN
+                },
+                body: JSON.stringify({ ids: [...downloadSelected] })
+            });
+            if (!res.ok) { showToast('Download failed', true); return; }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'scriba_notes.zip';
+            a.click();
+            URL.revokeObjectURL(url);
+            closeDownloadModal();
+        } catch {
+            showToast('Download failed', true);
+        }
     }
  
     // ── Utilities ──────────────────────────────────────────────────────────────
