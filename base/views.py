@@ -248,7 +248,7 @@ def export_notes(request):
     with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
         seen_names = {}
         for note in notes:
-            md_content = f"# {note.title}\n\n{note.description or ''}"
+            md_content = f"{note.description or ''}"
 
             safe_name = "".join(c if c.isalnum() or c in " -_" else "_" for c in note.title).strip() or f"note_{note.pk}"
             safe_name = safe_name[:60]
