@@ -123,6 +123,7 @@
         transform: translateX(-50%) translateY(0);
     }
     #toast.toast-error { background: var(--danger, #993C1D); }
+    #toast.toast-success { background: #3a9e68; }
 
     /* Settings Dropdown */
 
@@ -170,15 +171,17 @@
     {% if user.is_authenticated %}
     <div style="position:relative;">
         <button type="button" class="btn-ghost" id="settingsBtn">Settings</button>
-        <div id="settingsDropdown" style="display:none; position:absolute; right:0; top:calc(100% + 6px); background:var(--surface); border:1px solid var(--border-mid); border-radius:var(--radius-md,8px); box-shadow:0 4px 16px rgba(0,0,0,.12); min-width:172px; z-index:200; padding:4px;">
-        
-            <button type="button" class="settings-item" onclick="openDownloadModal(); document.getElementById('settingsDropdown').style.display='none';">Download Notes</button>
+        <div id="settingsDropdown" style="display:none; position:absolute; right:0; top:calc(100% + 6px); background:var(--surface); border:1px solid var(--border-mid); border-radius:var(--radius-md,8px); box-shadow:0 4px 16px rgba(0,0,0,.12); min-width:172px; z-index:200; padding:4px; flex-direction:column;">
+            
+            <button type="button" class="settings-item" onclick="openUploadModal(); document.getElementById('settingsDropdown').style.display='none';">Import notes</button>
+            <button type="button" class="settings-item" onclick="openDownloadModal(); document.getElementById('settingsDropdown').style.display='none';">Export notes</button>
+            <button type="button" class="settings-item" onclick="openChangePasswordModal(); document.getElementById('settingsDropdown').style.display='none';">Change password</button>
         
             <div class="settings-divider"></div>
 
             <form method="POST" action="{% url 'logout' %}">
                 {% csrf_token %}
-                <button type="submit" class="settings-item settings-item--danger">Sign Out</button>
+                <button type="submit" class="settings-item settings-item--danger">Sign out</button>
             </form>
 
         </div>
@@ -291,7 +294,7 @@
     <div id="downloadModal" onclick="if(event.target===this)closeDownloadModal();" style="display:none; position:fixed; inset:0; z-index:500; background:rgba(0,0,0,.32); align-items:center; justify-content:center;">
         <div style="background:var(--surface); border:0.5px solid var(--border-mid); border-radius:var(--radius-lg); padding:24px; width:100%; max-width:420px; margin:1rem; display:flex; flex-direction:column; gap:16px; height:540px;">
             <div style="display:flex; align-items:center; justify-content:space-between;">
-                <span style="font-size:20px; font-weight:500; color:var(--text-primary);">Download Notes</span>
+                <span style="font-size:20px; font-weight:500; color:var(--text-primary);">Export Notes</span>
             </div>
 
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
@@ -305,6 +308,88 @@
             <div style="display:flex; justify-content:flex-end; gap:8px; padding-top:14px; border-top:0.5px solid var(--border);">
                 <button onclick="confirmDownload()" id="downloadConfirmBtn" style="height:32px;padding:0 16px;font-size:13px;font-weight:500;font-family:var(--font-sans);border:none;border-radius:var(--radius-md);background:var(--accent);color:#fff;cursor:pointer;">Download</button>
                 <button onclick="closeDownloadModal()" style="height:32px;padding:0 14px;font-size:13px;font-family:var(--font-sans);border:0.5px solid var(--border-mid);border-radius:var(--radius-md);background:transparent;color:var(--text-secondary);cursor:pointer;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Notes Modal -->
+    <div id="uploadModal" onclick="if(event.target===this)closeUploadModal();" style="display:none; position:fixed; inset:0; z-index:500; background:rgba(0,0,0,.32); align-items:center; justify-content:center;">
+        <div style="background:var(--surface); border:0.5px solid var(--border-mid); border-radius:var(--radius-lg); padding:24px; width:100%; max-width:420px; margin:1rem; display:flex; flex-direction:column; gap:16px; height:540px;">
+            <span style="font-size:20px; font-weight:500; color:var(--text-primary);">Import Notes</span>
+
+            <div id="uploadDropZone"
+                style="border:1.5px dashed rgba(108,99,255,.35); border-radius:var(--radius-md); padding:0 16px; height:180px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center; cursor:pointer; background:rgba(108,99,255,.04); transition:border-color .15s, background .15s;"
+                onclick="document.getElementById('uploadFileInput').click()"
+                ondragover="event.preventDefault(); this.style.borderColor='var(--accent)'; this.style.background='rgba(108,99,255,.09)';"
+                ondragleave="this.style.borderColor='rgba(108,99,255,.35)'; this.style.background='rgba(108,99,255,.04)';"
+                ondrop="handleUploadDrop(event)">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(108,99,255,.5)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none; flex-shrink:0;"><path d="M12 15V3m0 0l-3 3m3-3l3 3"/><path d="M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"/></svg>
+                <div style="pointer-events:none;">
+                    <div style="font-size:13px; font-weight:500; color:var(--text-primary); margin-bottom:3px;">Drop files here or <span style="color:var(--accent);">browse</span></div>
+                    <div style="font-size:11px; color:var(--text-hint); letter-spacing:.01em;">.md and .txt only &nbsp;·&nbsp; up to 5 MB each</div>
+                </div>
+            </div>
+
+            <input type="file" id="uploadFileInput" accept=".md,.txt" multiple style="display:none" onchange="handleUploadFiles(this.files)">
+
+            <div id="uploadFileList" style="display:flex; flex-direction:column; gap:4px; overflow-y:auto; flex:1; min-height:0; height:0;"></div>
+
+            <div style="display:flex; justify-content:flex-end; gap:8px; padding-top:14px; border-top:0.5px solid var(--border);">
+                <button onclick="confirmUpload()" style="height:32px;padding:0 16px;font-size:13px;font-weight:500;font-family:var(--font-sans);border:none;border-radius:var(--radius-md);background:var(--accent);color:#fff;cursor:pointer;">Upload</button>
+                <button onclick="closeUploadModal()" style="height:32px;padding:0 14px;font-size:13px;font-family:var(--font-sans);border:0.5px solid var(--border-mid);border-radius:var(--radius-md);background:transparent;color:var(--text-secondary);cursor:pointer;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="changePasswordModal" onclick="if(event.target===this)closeChangePasswordModal();" style="display:none; position:fixed; inset:0; z-index:500; background:rgba(0,0,0,.22); align-items:center; justify-content:center;">
+        <div style="background:var(--surface); border:none; border-radius:16px; padding:28px 28px 24px; width:100%; max-width:420px; margin:1rem; display:flex; flex-direction:column; gap:16px; box-shadow:0 8px 40px rgba(0,0,0,.13), 0 1.5px 6px rgba(0,0,0,.07);">
+            <span style="font-size:20px; font-weight:500; color:var(--text-primary);">Change password</span>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                    <label style="font-size:12px; font-weight:500; color:var(--text-secondary);">Current password</label>
+                    <div style="position:relative; display:flex; align-items:center;">
+                        <input id="cpCurrentPassword" type="password" autocomplete="current-password"
+                            style="width:100%; box-sizing:border-box; height:40px; padding:0 36px 0 10px; font-size:13px; font-family:var(--font-sans); border:1px solid var(--border-mid); border-radius:var(--radius-md); background:var(--surface); color:var(--text-primary); outline:none; transition:border-color .15s, box-shadow .15s;">
+                        <button type="button" onclick="toggleCpVisibility('cpCurrentPassword', this)" tabindex="-1"
+                            style="position:absolute; right:8px; background:none; border:none; cursor:pointer; color:var(--text-hint); padding:0; display:flex; align-items:center; justify-content:center;">
+                            <svg class="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <svg class="eye-off-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                    <label style="font-size:12px; font-weight:500; color:var(--text-secondary);">New password</label>
+                    <div style="position:relative; display:flex; align-items:center;">
+                        <input id="cpNewPassword" type="password" autocomplete="new-password"
+                            style="width:100%; box-sizing:border-box; height:40px; padding:0 36px 0 10px; font-size:13px; font-family:var(--font-sans); border:1px solid var(--border-mid); border-radius:var(--radius-md); background:var(--surface); color:var(--text-primary); outline:none; transition:border-color .15s, box-shadow .15s;">
+                        <button type="button" onclick="toggleCpVisibility('cpNewPassword', this)" tabindex="-1"
+                            style="position:absolute; right:8px; background:none; border:none; cursor:pointer; color:var(--text-hint); padding:0; display:flex; align-items:center; justify-content:center;">
+                            <svg class="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <svg class="eye-off-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                    <label style="font-size:12px; font-weight:500; color:var(--text-secondary);">Confirm new password</label>
+                    <div style="position:relative; display:flex; align-items:center;">
+                        <input id="cpConfirmPassword" type="password" autocomplete="new-password"
+                            style="width:100%; box-sizing:border-box; height:40px; padding:0 36px 0 10px; font-size:13px; font-family:var(--font-sans); border:1px solid var(--border-mid); border-radius:var(--radius-md); background:var(--surface); color:var(--text-primary); outline:none; transition:border-color .15s, box-shadow .15s;"
+                            onkeydown="if(event.key==='Enter')confirmChangePassword(); if(event.key==='Escape')closeChangePasswordModal();">
+                        <button type="button" onclick="toggleCpVisibility('cpConfirmPassword', this)" tabindex="-1"
+                            style="position:absolute; right:8px; background:none; border:none; cursor:pointer; color:var(--text-hint); padding:0; display:flex; align-items:center; justify-content:center;">
+                            <svg class="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <svg class="eye-off-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div id="cpError" style="display:none; font-size:12px; color:var(--danger, #993C1D); margin-top:2px; padding:8px 10px; background:rgba(153,60,29,.07); border-radius:6px;"></div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:8px; padding-top:8px;">
+                <button onclick="confirmChangePassword()" style="height:32px;padding:0 16px;font-size:13px;font-weight:500;font-family:var(--font-sans);border:none;border-radius:var(--radius-md);background:var(--accent);color:#fff;cursor:pointer;">Save</button>
+                <button onclick="closeChangePasswordModal()" style="height:32px;padding:0 14px;font-size:13px;font-family:var(--font-sans);border:0.5px solid var(--border-mid);border-radius:var(--radius-md);background:transparent;color:var(--text-secondary);cursor:pointer;">Cancel</button>
             </div>
         </div>
     </div>
@@ -350,6 +435,9 @@
  
     // CSRF token for POST requests
     const CSRF_TOKEN = "{{ csrf_token }}";
+    const EXPORT_URL = "{% url 'export_notes' %}";
+    const IMPORT_URL = "{% url 'import_notes' %}";
+    const CHANGE_PASSWORD_URL = "{% url 'change_password' %}";
 </script>
 
 <!-- ── UI Logic ── -->
@@ -655,9 +743,142 @@
 
 
     document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') { closeDeleteModal(); closeRenameModal(); closeDownloadModal(); }
+        if (e.key === 'Escape') { closeDeleteModal(); closeRenameModal(); closeDownloadModal(); closeUploadModal(); }
     });
     
+    // ── Change Password modal ──────────────────────────────────────────────────
+ 
+    function openChangePasswordModal() {
+        document.getElementById('cpCurrentPassword').value = '';
+        document.getElementById('cpNewPassword').value = '';
+        document.getElementById('cpConfirmPassword').value = '';
+        document.getElementById('cpError').style.display = 'none';
+        // Reset eye icons
+        document.querySelectorAll('#changePasswordModal input[type]').forEach(inp => {
+            inp.type = 'password';
+        });
+        document.querySelectorAll('#changePasswordModal .eye-icon').forEach(el => el.style.display = '');
+        document.querySelectorAll('#changePasswordModal .eye-off-icon').forEach(el => el.style.display = 'none');
+        document.getElementById('changePasswordModal').style.display = 'flex';
+        setTimeout(() => document.getElementById('cpCurrentPassword').focus(), 50);
+    }
+ 
+    function closeChangePasswordModal() {
+        document.getElementById('changePasswordModal').style.display = 'none';
+    }
+ 
+    function toggleCpVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const isHidden = input.type === 'password';
+        input.type = isHidden ? 'text' : 'password';
+        btn.querySelector('.eye-icon').style.display = isHidden ? 'none' : '';
+        btn.querySelector('.eye-off-icon').style.display = isHidden ? '' : 'none';
+    }
+ 
+    function setCpError(msg) {
+        const el = document.getElementById('cpError');
+        el.textContent = msg;
+        el.style.display = msg ? '' : 'none';
+    }
+ 
+    async function confirmChangePassword() {
+        const current = document.getElementById('cpCurrentPassword').value;
+        const newPw   = document.getElementById('cpNewPassword').value;
+        const confirm = document.getElementById('cpConfirmPassword').value;
+ 
+        if (!current) { setCpError('Please enter your current password.'); return; }
+        if (!newPw)   { setCpError('Please enter a new password.'); return; }
+        if (newPw !== confirm) { setCpError('New passwords do not match.'); return; }
+        if (newPw.length < 8) { setCpError('Password must be at least 8 characters.'); return; }
+        setCpError('');
+ 
+        try {
+            const res = await fetch(CHANGE_PASSWORD_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+                body: JSON.stringify({ current_password: current, new_password: newPw })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.ok) {
+                setCpError(data.error || 'Could not change password.');
+                return;
+            }
+            closeChangePasswordModal();
+            showToast('Password successfully changed', false, true);
+        } catch {
+            setCpError('An error occurred. Please try again.');
+        }
+    }
+ 
+    function confirmRenameTag() {
+        if (!_pendingRename) return;
+        const { tagId, renameUrl } = _pendingRename;
+        const newName = document.getElementById('renameTagInput').value.trim();
+        if (!newName) return;
+ 
+        const originalTag = allTags.find(t => String(t.id) === String(tagId));
+        const oldName = originalTag?.name;
+ 
+        // No-op if unchanged
+        if (oldName && oldName.toLowerCase() === newName.toLowerCase()) {
+            closeRenameModal();
+            return;
+        }
+ 
+        // Check for duplicate before doing anything
+        const duplicate = allTags.find(t =>
+            String(t.id) !== String(tagId) &&
+            t.name.toLowerCase() === newName.toLowerCase()
+        );
+        if (duplicate) {
+            showToast('This tag already exists', true);
+            return; // modal stays open, nothing changes
+        }
+ 
+        closeRenameModal();
+ 
+        // Safe to update — no duplicate possible
+        allTags = allTags.map(t => String(t.id) === String(tagId) ? { ...t, name: newName } : t);
+        notes = notes.map(n => ({
+            ...n,
+            tags: n.tags.map(t => String(t.id) === String(tagId) ? { ...t, name: newName } : t)
+        }));
+        updateTagBtnLabel();
+        renderTagPanel();
+        renderNotes();
+ 
+        fetch(renameUrl, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF_TOKEN, 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'csrfmiddlewaretoken=' + encodeURIComponent(CSRF_TOKEN) + '&name=' + encodeURIComponent(newName)
+        })
+        .then(res => res.json())
+        .then(data => {
+            // Should never happen given client validation, but just in case
+            if (!data.ok) {
+                allTags = allTags.map(t => String(t.id) === String(tagId) ? { ...t, name: oldName } : t);
+                notes = notes.map(n => ({
+                    ...n,
+                    tags: n.tags.map(t => String(t.id) === String(tagId) ? { ...t, name: oldName } : t)
+                }));
+                updateTagBtnLabel();
+                renderTagPanel();
+                renderNotes();
+                showToast(data.error || 'Could not rename tag.', true);
+            }
+        })
+        .catch(() => { window.location.reload(); });
+    }
+ 
+    function closeRenameModal() {
+        document.getElementById('renameTagModal').style.display = 'none';
+        _pendingRename = null;
+    }
+ 
+ 
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closeDeleteModal(); closeRenameModal(); closeDownloadModal(); closeUploadModal(); }
+    });
  
     // ── Notes rendering ────────────────────────────────────────────────────────
  
@@ -721,7 +942,7 @@
         }
 
         if (!filtered.length) {
-            grid.innerHTML = '<div class="no-notes">No notes found</div>';
+            grid.innerHTML = '<div class="no-notes">No notes here yet</div>';
             return;
         }
 
@@ -732,7 +953,7 @@
                     <div class="note-tags">
                         ${n.tags.length
                             ? n.tags.map(t => `<span class="pill ${pillClassById(t.id)}">${escHtml(t.name)}</span>`).join('')
-                            : '<span style="font-size:12px;color:var(--text-hint)">No Tags</span>'
+                            : '<span style="font-size:12px;color:var(--text-hint)">No tags here</span>'
                         }
                     </div>
                 </div>
@@ -752,7 +973,7 @@
         const dropdown = document.getElementById('settingsDropdown');
         if (!dropdown) return;
         if (btn && btn.contains(e.target)) {
-            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+            dropdown.style.display = dropdown.style.display === 'none' ? 'flex' : 'none';
         } else {
             dropdown.style.display = 'none';
         }
@@ -760,7 +981,6 @@
 
     // ── Download modal ────────────────────────────────────────────────────────
 
-    const EXPORT_URL = "{% url 'export_notes' %}";
     let downloadSelected = new Set();
 
     function openDownloadModal() {
@@ -875,6 +1095,86 @@
             closeDownloadModal();
         } catch {
             showToast('Download failed', true);
+        }
+    }
+
+    // ── Upload modal ──────────────────────────────────────────────────────────
+
+    let uploadFiles = [];
+
+    function openUploadModal() {
+        uploadFiles = [];
+        document.getElementById('uploadFileList').innerHTML = '';
+        document.getElementById('uploadFileInput').value = '';
+        document.getElementById('uploadModal').style.display = 'flex';
+    }
+
+    function closeUploadModal() {
+        document.getElementById('uploadModal').style.display = 'none';
+    }
+
+    function handleUploadDrop(e) {
+        e.preventDefault();
+        const zone = document.getElementById('uploadDropZone');
+        zone.style.borderColor = '';
+        zone.style.background = '';
+        handleUploadFiles(e.dataTransfer.files);
+    }
+
+    function handleUploadFiles(fileList) {
+        const allowed = ['.md', '.txt'];
+        const MAX_SIZE = 5 * 1024 * 1024;
+        for (const file of fileList) {
+            const dotIndex = file.name.lastIndexOf('.');
+            const ext = dotIndex !== -1 ? file.name.slice(dotIndex).toLowerCase() : '';
+            if (!allowed.includes(ext)) {
+                showToast(`"${escHtml(file.name)}" — only .md and .txt files are allowed`, true);
+                continue;
+            }
+            if (file.size > MAX_SIZE) {
+                showToast(`"${escHtml(file.name)}" exceeds the 5 MB limit`, true);
+                continue;
+            }
+            if (!uploadFiles.find(f => f.name === file.name && f.size === file.size)) {
+                uploadFiles.push(file);
+            }
+        }
+        renderUploadFileList();
+    }
+
+    function renderUploadFileList() {
+        const list = document.getElementById('uploadFileList');
+        if (!uploadFiles.length) { list.innerHTML = ''; return; }
+        list.innerHTML = uploadFiles.map((f, i) => `
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 10px; border-radius:var(--radius-md); border:0.5px solid var(--border); font-size:13px; color:var(--text-primary);">
+                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escHtml(f.name)}</span>
+                <button onclick="removeUploadFile(${i})" style="flex-shrink:0; margin-left:8px; background:none; border:none; cursor:pointer; color:var(--text-hint); font-size:15px; line-height:1; padding:0 2px;">×</button>
+            </div>
+        `).join('');
+    }
+
+    function removeUploadFile(index) {
+        uploadFiles.splice(index, 1);
+        renderUploadFileList();
+    }
+
+    async function confirmUpload() {
+        if (!uploadFiles.length) { showToast('No files selected', true); return; }
+        const formData = new FormData();
+        uploadFiles.forEach(f => formData.append('files', f));
+        try {
+            const res = await fetch(IMPORT_URL, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': CSRF_TOKEN },
+                body: formData
+            });
+            const data = await res.json();
+            if (!res.ok || !data.ok) { showToast('Upload failed', true); return; }
+            closeUploadModal();
+            showToast(`${data.created} note${data.created !== 1 ? 's' : ''} uploaded`);
+            setTimeout(() => window.location.reload(), 1200);
+        } catch {
+            showToast('Upload failed', true);
         }
     }
  

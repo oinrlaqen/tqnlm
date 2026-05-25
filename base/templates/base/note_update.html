@@ -260,9 +260,10 @@
         outline: none;
         resize: none;
         line-height: 1.65;
-        min-height: 360px;
+        min-height: 100vh;
         caret-color: var(--accent);
         overflow: hidden;
+        padding-bottom: 90vh;
     }
     .note-body-area textarea::placeholder { color: var(--text-hint); }
 
@@ -311,7 +312,6 @@
             <input type="text" name="new_tag_name" id="new-tag-name" placeholder="New tag name" maxlength="20" autocomplete="off">
         </div>
 
-        {% if available_tags %}
         <div class="select-tag-wrap">
             <button type="button" class="toolbar-btn toolbar-btn-ghost" onclick="toggleSelectPanel(event)">
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -324,10 +324,9 @@
                 {% for tag in available_tags %}
                 <div class="select-tag-item" data-tag-id="{{ tag.id }}" data-tag-name="{{ tag.name }}" onclick="uiAssignExistingTag('{{ tag.id }}', '{{ tag.name }}')">{{ tag.name }}</div>
                 {% endfor %}
-                <div id="no-tags-msg" style="display:none; padding:6px 8px; font-size:13px; color:var(--text-hint)">No tags to select</div>
+                <div id="no-tags-msg" style="display:block; padding:6px 8px; font-size:13px; color:var(--text-hint)">No tags yet</div>
             </div>
         </div>
-        {% endif %}
 
         <!-- ── Markdown syntax reference ── -->
         <a

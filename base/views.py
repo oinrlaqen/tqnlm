@@ -11,6 +11,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import update_session_auth_hash
 
 from .models import Note, Tag, NoteToken
 from .forms import EmailLoginForm, EmailRegisterForm, NoteForm
@@ -21,6 +22,7 @@ from django.http import JsonResponse
 from django.core.exceptions import PermissionDenied
 
 import io
+import os
 import zipfile
 import json as json_module
 
@@ -264,3 +266,80 @@ def export_notes(request):
     response['Cache-Control'] = 'no-store'
     response['X-Content-Type-Options'] = 'nosniff'
     return response
+
+@login_required
+def import_notes(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    files = request.FILES.getlist('files')
+    if not files:
+        return JsonResponse({'error': 'No files provided'}, status=400)
+    
+    ALLOWED_EXTENTIONS = {'.md', '.txt'}
+    MAX_FILE_SIZE = 5 * 1024 * 1024
+    MAX_TITLE_LENGTH = 199
+    created_count = 0
+
+    for f in files:
+        name = f.name or ''
+        ext = os.path.splitext(name)[1].lower()
+
+        if ext not in ALLOWED_EXTENTIONS:
+            continue
+
+        if f.size > MAX_FILE_SIZE:
+            continue
+
+        try: 
+            content = f.read().decode('utf-8')
+        except (UnicodeDecodeError, ValueError):
+            continue
+
+        raw_title = os.path.splitext(name)[0]
+        title = raw_title[:MAX_TITLE_LENGTH].strip() or 'Untitled'
+
+        note = Note.objects.create(
+            user=request.user,
+            title=title,
+            description=content,
+        )
+
+        NoteToken.objects.create(
+            note=note,
+            token=NoteToken.generate_token(),
+        )
+
+        created_count += 1
+    return JsonResponse({'ok': True, 'created': created_count})
+
+@login_required
+def change_password(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+ 
+    try:
+        body = json_module.loads(request.body)
+        current_password = body.get('current_password', '')
+        new_password = body.get('new_password', '')
+    except (ValueError, KeyError):
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+ 
+    if not current_password or not new_password:
+        return JsonResponse({'ok': False, 'error': 'All fields are required'}, status=400)
+ 
+    if not request.user.check_password(current_password):
+        return JsonResponse({'ok': False, 'error': 'Current password is incorrect'})
+ 
+    if len(new_password) < 8:
+        return JsonResponse({'ok': False, 'error': 'Password must contain at least 8 characters'})
+
+    if request.user.check_password(new_password):
+        return JsonResponse({'ok': False, 'error': 'New password must be different'})
+ 
+    request.user.set_password(new_password)
+    request.user.save()
+
+    update_session_auth_hash(request, request.user)
+ 
+    return JsonResponse({'ok': True})

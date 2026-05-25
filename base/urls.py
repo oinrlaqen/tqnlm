@@ -2,7 +2,7 @@ from django.urls import path
 from .views import ( 
     RegisterPage, NoteList, NoteDetail, NoteCreate, NoteUpdate, 
     NoteDelete, CustomLoginView, LogoutView, remove_tag_from_note,
-    delete_tag, rename_tag, export_notes
+    delete_tag, rename_tag, export_notes, import_notes, change_password
 )
 
 urlpatterns = [
@@ -17,5 +17,7 @@ urlpatterns = [
     path('note/<str:token>/remove-tag/<int:tag_pk>/', remove_tag_from_note, name='remove-tag'),
     path('tags/<int:tag_pk>/delete/', delete_tag, name='delete_tag'),
     path('tags/<int:tag_pk>/rename/', rename_tag, name='rename_tag'),
-    path('export/', export_notes, name='export_notes')
+    path('export/', export_notes, name='export_notes'),
+    path('import/', import_notes, name='import_notes'),
+    path('change-password/', change_password, name='change_password'),
 ]
