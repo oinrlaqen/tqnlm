@@ -324,7 +324,7 @@
                 {% for tag in available_tags %}
                 <div class="select-tag-item" data-tag-id="{{ tag.id }}" data-tag-name="{{ tag.name }}" onclick="uiAssignExistingTag('{{ tag.id }}', '{{ tag.name }}')">{{ tag.name }}</div>
                 {% endfor %}
-                <div id="no-tags-msg" style="display:block; padding:6px 8px; font-size:13px; color:var(--text-hint)">No tags yet</div>
+                <div id="no-tags-msg" style="display:none; padding:6px 8px; font-size:13px; color:var(--text-hint)">No tags here</div>
             </div>
         </div>
 
@@ -745,6 +745,14 @@
         ta.addEventListener('input', grow);
         grow();
     });
+
+    /* Show "No tags here" on load if no available tags */
+    (function () {
+        const anyVisible = document.querySelectorAll('#selectTagPanel .select-tag-item:not(.hidden)').length > 0;
+        const msg = document.getElementById('no-tags-msg');
+        if (msg) msg.style.display = anyVisible ? 'none' : 'block';
+    })();
+
 </script>
 
 {% endblock content %}

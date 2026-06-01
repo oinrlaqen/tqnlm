@@ -152,6 +152,7 @@
     }
     .settings-divider {
         height: 1px;
+        flex: 0 0 auto; 
         background: var(--border-mid);
         margin: 4px 0;
     }
@@ -171,12 +172,12 @@
     {% if user.is_authenticated %}
     <div style="position:relative;">
         <button type="button" class="btn-ghost" id="settingsBtn">Settings</button>
-        <div id="settingsDropdown" style="display:none; position:absolute; right:0; top:calc(100% + 6px); background:var(--surface); border:1px solid var(--border-mid); border-radius:var(--radius-md,8px); box-shadow:0 4px 16px rgba(0,0,0,.12); min-width:172px; z-index:200; padding:4px; flex-direction:column;">
+        <div id="settingsDropdown" style="display:none; position:absolute; right:0; top:calc(100% + 6px); background:var(--surface); border:1px solid var(--border-mid); border-radius:var(--radius-md,8px); box-shadow:0 4px 16px rgba(0,0,0,.12); min-width:172px; z-index:200; padding:3px; flex-direction:column;">
             
             <button type="button" class="settings-item" onclick="openUploadModal(); document.getElementById('settingsDropdown').style.display='none';">Import notes</button>
             <button type="button" class="settings-item" onclick="openDownloadModal(); document.getElementById('settingsDropdown').style.display='none';">Export notes</button>
+            <div class="settings-divider"></div>
             <button type="button" class="settings-item" onclick="openChangePasswordModal(); document.getElementById('settingsDropdown').style.display='none';">Change password</button>
-        
             <div class="settings-divider"></div>
 
             <form method="POST" action="{% url 'logout' %}">
@@ -332,7 +333,7 @@
 
             <input type="file" id="uploadFileInput" accept=".md,.txt" multiple style="display:none" onchange="handleUploadFiles(this.files)">
 
-            <div id="uploadFileList" style="display:flex; flex-direction:column; gap:4px; overflow-y:auto; flex:1; min-height:0; height:0;"></div>
+            <div id="uploadFileList" style="display:flex; flex-direction:column; gap:4px; overflow-y:auto; flex:1; min-height:80px; height:0;"></div>
 
             <div style="display:flex; justify-content:flex-end; gap:8px; padding-top:14px; border-top:0.5px solid var(--border);">
                 <button onclick="confirmUpload()" style="height:32px;padding:0 16px;font-size:13px;font-weight:500;font-family:var(--font-sans);border:none;border-radius:var(--radius-md);background:var(--accent);color:#fff;cursor:pointer;">Upload</button>
@@ -537,7 +538,7 @@
     function renderTagPanel() {
         const panel = document.getElementById('tagPanel');
         if (!allTags.length) {
-            panel.innerHTML = '<div class="tag-panel-empty">No tags yet</div>';
+            panel.innerHTML = '<div class="tag-panel-empty">No tags here</div>';
             return;
         }
         const modeBar = `
@@ -786,10 +787,10 @@
         const newPw   = document.getElementById('cpNewPassword').value;
         const confirm = document.getElementById('cpConfirmPassword').value;
  
-        if (!current) { setCpError('Please enter your current password.'); return; }
-        if (!newPw)   { setCpError('Please enter a new password.'); return; }
-        if (newPw !== confirm) { setCpError('New passwords do not match.'); return; }
-        if (newPw.length < 8) { setCpError('Password must be at least 8 characters.'); return; }
+        if (!current) { setCpError('Please enter your current password'); return; }
+        if (!newPw)   { setCpError('Please enter a new password'); return; }
+        if (newPw !== confirm) { setCpError('New passwords do not match'); return; }
+        if (newPw.length < 8) { setCpError('Password must be at least 8 characters'); return; }
         setCpError('');
  
         try {
@@ -1001,13 +1002,13 @@
     function renderDownloadList() {
         const list = document.getElementById('downloadNoteList');
         if (!notes.length) {
-            list.innerHTML = '<div style="font-size:13px;color:var(--text-hint);text-align:center;padding:12px 0;">No notes yet</div>';
+            list.innerHTML = '<div style="font-size:13px;color:var(--text-hint);text-align:center;padding:150px 0;">No notes to export</div>';
             return;
         }
         const q = (document.getElementById('dlFilterInput')?.value || '').toLowerCase().trim();
         const filtered = q ? notes.filter(n => n.title.toLowerCase().includes(q)) : notes;
         if (!filtered.length) {
-            list.innerHTML = '<div style="font-size:13px;color:var(--text-hint);text-align:center;padding:12px 0;">No notes match</div>';
+            list.innerHTML = '<div style="font-size:13px;color:var(--text-hint);text-align:center;padding:150px 0;">No notes matched</div>';
             return;
         }
         list.innerHTML = filtered.map(n => `
@@ -1052,7 +1053,9 @@
         const btn = document.getElementById('selectAllBtn');
         const q = (document.getElementById('dlFilterInput')?.value || '').toLowerCase().trim();
         const visibleNotes = q ? notes.filter(n => n.title.toLowerCase().includes(q)) : notes;
-        const allVisibleSelected = visibleNotes.length > 0 && visibleNotes.every(n => downloadSelected.has(n.id));
+        const allVisibleSelected = visibleNotes.length > 0
+            ? visibleNotes.every(n => downloadSelected.has(n.id))
+            : btn.style.background === 'var(--accent)';
         if (allVisibleSelected) {
             visibleNotes.forEach(n => {
                 downloadSelected.delete(n.id);
@@ -1104,7 +1107,7 @@
 
     function openUploadModal() {
         uploadFiles = [];
-        document.getElementById('uploadFileList').innerHTML = '';
+        document.getElementById('uploadFileList').innerHTML = '<div style="font-size:13px;color:var(--text-hint);text-align:center;padding:80px 0;">No notes to upload</div>';
         document.getElementById('uploadFileInput').value = '';
         document.getElementById('uploadModal').style.display = 'flex';
     }
@@ -1144,7 +1147,7 @@
 
     function renderUploadFileList() {
         const list = document.getElementById('uploadFileList');
-        if (!uploadFiles.length) { list.innerHTML = ''; return; }
+        if (!uploadFiles.length) { list.innerHTML = '<div style="font-size:13px;color:var(--text-hint);text-align:center;padding:80px 0;">No notes to upload</div>'; return; }
         list.innerHTML = uploadFiles.map((f, i) => `
             <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 10px; border-radius:var(--radius-md); border:0.5px solid var(--border); font-size:13px; color:var(--text-primary);">
                 <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escHtml(f.name)}</span>

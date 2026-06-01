@@ -296,7 +296,7 @@
                 {% for tag in user_tags %}
                 <div class="select-tag-item" data-tag-name="{{ tag.name|escape }}" onclick="addPendingTagByName(this.dataset.tagName)">{{ tag.name }}</div>
                 {% endfor %}
-                <div id="no-tags-msg-create" style="display:block; padding:6px 8px; font-size:13px; color:var(--text-hint);">No tags yet</div>
+                <div id="no-tags-msg-create" style="display:none; padding:6px 8px; font-size:13px; color:var(--text-hint);">No tags here</div>
             </div>
         </div>
 
@@ -378,7 +378,7 @@
             const ta = editArea.querySelector('textarea');
             const md = ta ? ta.value : '';
             document.getElementById('preview-content').innerHTML =
-                marked.parse(md || '*No text here yet*');
+                '<p style="color:var(--text-hint);">Text here</p>';
             editArea.classList.add('hidden-edit');
             previewArea.classList.add('active');
             tagToolbar.style.display  = 'none';
@@ -575,6 +575,8 @@
         ta.addEventListener('input', grow);
         grow();
     });
+
+    syncSelectPanelCreate();
 </script>
 
 {% endblock content %}

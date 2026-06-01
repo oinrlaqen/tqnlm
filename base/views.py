@@ -262,7 +262,7 @@ def export_notes(request):
 
     buffer.seek(0)
     response = HttpResponse(buffer.read(), content_type='application/zip')
-    response['Content-Disposition'] = 'attachment; filename="notes.json"'
+    response['Content-Disposition'] = 'attachment; filename="notes.zip"'
     response['Cache-Control'] = 'no-store'
     response['X-Content-Type-Options'] = 'nosniff'
     return response
@@ -271,10 +271,18 @@ def export_notes(request):
 def import_notes(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    MAX_FILES = 50
     
     files = request.FILES.getlist('files')
     if not files:
         return JsonResponse({'error': 'No files provided'}, status=400)
+
+    if len(files) > MAX_FILES:
+        return JsonResponse(
+            {'error': f'Too many files. Maximum {MAX_FILES} per one load'},
+            status=400
+        )
     
     ALLOWED_EXTENTIONS = {'.md', '.txt'}
     MAX_FILE_SIZE = 5 * 1024 * 1024
