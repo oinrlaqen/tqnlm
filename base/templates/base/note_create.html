@@ -289,9 +289,9 @@
     .hl-codeblock   { color: #2563EB; }
     .hl-link        { color: #16A34A; text-decoration: underline; }
     .hl-image       { color: #c678dd; }
-    .hl-blockquote  { color: #b2f7ef; }
+    .hl-blockquote  { color: #B08D57; }
     .hl-hr          { color: #4b5263; }
-    .hl-list        { color: #abb2bf; }
+    .hl-list        { color: var(--text-primary); }
     .hl-plain       { color: var(--text-primary); }
 
 </style>
@@ -707,9 +707,9 @@
                 .replace(/`([^`]+)`/g, '<span class="hl-code">$&</span>')
                 .replace(/\*\*\*([^*]+)\*\*\*/g, '<span class="hl-bold-italic">$&</span>')
                 .replace(/(?<!\*)\*\*(?!\*)([^*]+)(?<!\*)\*\*(?!\*)/g, '<span class="hl-bold">$&</span>')
-                .replace(/__([^_]+)__/g, '<span class="hl-bold">$&</span>')
+                .replace(/(^|(?<=\s))__([^_]+)__((?=\s)|$)/g, '$1<span class="hl-bold">__$2__</span>$3')
                 .replace(/(?<!\*)\*(?!\*)([^*]+)(?<!\*)\*(?!\*)/g, '<span class="hl-italic">$&</span>')
-                .replace(/_([^_]+)_/g, '<span class="hl-italic">$&</span>')
+                .replace(/(^|(?<=\s))_([^_]+)_((?=\s)|$)/g, '$1<span class="hl-italic">_$2_</span>$3')
                 + '</span>';
         }).join('\n');
 
