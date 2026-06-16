@@ -90,8 +90,6 @@
     }
     .toolbar-btn-accent:hover { background: var(--accent-dark); }
 
-    #highlight-toggle-btn { border-radius: var(--radius-md); }
-
     /* ── Markdown info button ─────────────────────────────────── */
     .toolbar-btn-info {
         height: 36px;
@@ -245,6 +243,7 @@
     #preview-area {
         display: none;
         padding-top: 20px;
+        padding-bottom: 80vh;
     }
     #preview-area.active { display: block; }
     .note-body-area.hidden-edit { display: none; }
@@ -280,25 +279,27 @@
         background: transparent;
     }
 
-    /* Token colors — based on VS Code Dark+ / One Dark */
-    .hl-heading     { color: #e06c75; }
-    .hl-bold        { color: #DB2777; } 
-    .hl-italic      { color: #0891B2; }
-    .hl-bold-italic { color: #7C3AED; }
-    .hl-code        { color: #2563EB; border-radius: 3px; }
-    .hl-codeblock   { color: #2563EB; }
-    .hl-link        { color: #16A34A; text-decoration: underline; }
-    .hl-image       { color: #c678dd; }
-    .hl-blockquote  { color: #B08D57; }
-    .hl-hr          { color: #4b5263; }
-    .hl-list        { color: var(--text-primary); }
-    .hl-plain       { color: var(--text-primary); }
+    /* Token colors */
+    .hl-heading      { color: #111827; }
+    .hl-bold         { font-weight: inherit; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; color: inherit; }
+    .hl-italic       { font-style: italic; color: inherit; }
+    .hl-bold-italic  { font-weight: inherit; font-style: italic; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; color: inherit; }
+    .hl-code         { color: #7C3AED; border-radius: 3px; }
+    .hl-codeblock    { color: #7C3AED; }
+    .hl-link-text    { color: #DC2626; text-decoration: none; }
+    .hl-link-url     { color: #06B6D4; text-decoration: underline; font-style: italic; }
+    .hl-image        { color: #c678dd; }
+    .hl-hr           { color: #4b5263; }
+    .hl-list-marker  { color: #F97316; font-weight: 700; }
+    .hl-plain        { color: var(--text-primary); }
 
 </style>
 
-<!-- GitHub Markdown CSS (used in preview) -->
+<!-- GitHub + xcode Markdown CSS (used in preview) -->
 <link rel="stylesheet"
   href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.1/github-markdown-light.min.css">
+<link rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/xcode.min.css">
 
 <form method="POST" action="" id="main-note-form">
     {% csrf_token %}
@@ -345,32 +346,6 @@
                 <div id="no-tags-msg-create" style="display:none; padding:6px 8px; font-size:13px; color:var(--text-hint);">No tags here</div>
             </div>
         </div>
-
-        <!-- ── Highlight toggle ── -->
-         
-        <button type="button" id="highlight-toggle-btn" class="btn-ghost" onclick="toggleHighlight()" title="Highlight mode"
-            style="display: inline-flex; align-items: center; justify-content: center; width: 50px; height: 36px; padding: 0; flex-shrink: 0;">
-            <svg width="30" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="1.75"
-                stroke-linecap="round" stroke-linejoin="round"
-                aria-hidden="true">
-                <path d="M12 3
-                        a6 6 0 0 1 6 6
-                        c0 2.3-1.2 4.1-3 5.5
-                        c-.6.5-1 1.2-1 2H10
-                        c0-.8-.4-1.5-1-2
-                        C7.2 13.1 6 11.3 6 9
-                        a6 6 0 0 1 6-6z"/>
-                <path d="M10 11l2 2 2-2"/>
-
-                <path d="M9.5 18h5"/>
-                <path d="M10 21h4"/>
-
-                <path d="M12 1v1.5"/>
-                <path d="M4.9 4.9l1 1"/>
-                <path d="M19.1 4.9l-1 1"/>
-            </svg>
-        </button>
 
         <!-- ── Markdown syntax reference ── -->
         <a
@@ -435,6 +410,7 @@
 </form>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script>
     /* ── Preview toggle ───────────────────────────────────────── */
     let isPreview = false;
@@ -450,8 +426,11 @@
         if (isPreview) {
             const ta = editArea.querySelector('textarea');
             const md = ta ? ta.value : '';
-            document.getElementById('preview-content').innerHTML =
-                '<p style="color:var(--text-hint);">Text here</p>';
+            const previewContent = document.getElementById('preview-content');
+            previewContent.innerHTML = marked.parse(md || '*Nothing to preview yet*');
+            previewContent.querySelectorAll('pre code').forEach(function (block) {
+                hljs.highlightElement(block);
+            });
             editArea.classList.add('hidden-edit');
             previewArea.classList.add('active');
             tagToolbar.style.display  = 'none';
@@ -653,26 +632,22 @@
 
     /* ── Highlight mode ───────────────────────────────────────── */
 
-    let isHighlight = false;
-
-    function toggleHighlight() {
-        isHighlight = !isHighlight;
-        const editArea = document.getElementById('edit-area');
-        const btn = document.getElementById('highlight-toggle-btn');
-        editArea.classList.toggle('highlight-mode', isHighlight);
-
-        if (isHighlight) {
-            btn.classList.remove('btn-ghost');
-            btn.classList.add('toolbar-btn-accent');
-            renderHighlight();
-        } else {
-            btn.classList.remove('toolbar-btn-accent');
-            btn.classList.add('btn-ghost');
-        }
-    }
+    let isHighlight = true;
 
     function escapeHtml(str) {
         return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function formatInline(esc) {
+        return esc
+            .replace(/!\[([^\]]*)\]\(([^)]*)\)/g, '<span class="hl-image">$&</span>')
+            .replace(/(?<!!)\[([^\]]*)\]\(([^)]*)\)/g, '<span class="hl-link-text">[$1]</span><span class="hl-link-url">($2)</span>')
+            .replace(/`([^`]+)`/g, '<span class="hl-code">$&</span>')
+            .replace(/\*\*\*([^*]+)\*\*\*/g, '<span class="hl-bold-italic">$&</span>')
+            .replace(/(?<!\*)\*\*(?!\*)([^*]+)(?<!\*)\*\*(?!\*)/g, '<span class="hl-bold">$&</span>')
+            .replace(/(^|(?<=\s))__([^_]+)__((?=\s)|$)/g, '$1<span class="hl-bold">__$2__</span>$3')
+            .replace(/(?<!\*)\*(?!\*)([^*]+)(?<!\*)\*(?!\*)/g, '<span class="hl-italic">$&</span>')
+            .replace(/(^|(?<=\s))_([^_]+)_((?=\s)|$)/g, '$1<span class="hl-italic">_$2_</span>$3');
     }
 
     function renderHighlight() {
@@ -694,27 +669,23 @@
 
             if (/^#{1,6}\s/.test(line))
                 return `<span class="hl-heading">${esc}</span>`;
-            if (/^>/.test(line))
-                return `<span class="hl-blockquote">${esc}</span>`;
+
             if (/^(-{3,}|\*{3,}|_{3,})$/.test(line.trim()))
                 return `<span class="hl-hr">${esc}</span>`;
-            if (/^(\s*[-*+]|\s*\d+\.)\s/.test(line))
-                return `<span class="hl-list">${esc}</span>`;
 
-            return '<span class="hl-plain">' + esc
-                .replace(/!\[([^\]]*)\]\([^)]*\)/g, '<span class="hl-image">$&</span>')
-                .replace(/\[([^\]]*)\]\([^)]*\)/g, '<span class="hl-link">$&</span>')
-                .replace(/`([^`]+)`/g, '<span class="hl-code">$&</span>')
-                .replace(/\*\*\*([^*]+)\*\*\*/g, '<span class="hl-bold-italic">$&</span>')
-                .replace(/(?<!\*)\*\*(?!\*)([^*]+)(?<!\*)\*\*(?!\*)/g, '<span class="hl-bold">$&</span>')
-                .replace(/(^|(?<=\s))__([^_]+)__((?=\s)|$)/g, '$1<span class="hl-bold">__$2__</span>$3')
-                .replace(/(?<!\*)\*(?!\*)([^*]+)(?<!\*)\*(?!\*)/g, '<span class="hl-italic">$&</span>')
-                .replace(/(^|(?<=\s))_([^_]+)_((?=\s)|$)/g, '$1<span class="hl-italic">_$2_</span>$3')
-                + '</span>';
+            const listMatch = esc.match(/^(\s*(?:[-*+]|\d+\.)\s+)(.*)$/);
+            if (listMatch) {
+                return `<span class="hl-list-marker">${listMatch[1]}</span><span class="hl-plain">${formatInline(listMatch[2])}</span>`;
+            }
+
+            return '<span class="hl-plain">' + formatInline(esc) + '</span>';
         }).join('\n');
 
         overlay.innerHTML = html;
     }
+
+    document.getElementById('edit-area').classList.add('highlight-mode');
+    renderHighlight();
 
     // Re-render on every keystroke when highlight is active
     document.querySelectorAll('.note-body-area textarea').forEach(ta => {

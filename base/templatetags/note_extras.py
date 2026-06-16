@@ -13,7 +13,6 @@ register = template.Library()
 def convert_markdown(value):
     extensions = [
         'markdown.extensions.fenced_code', # code blocks
-        'markdown.extensions.codehilite', # syntax highlighting
         'markdown.extensions.tables', # tables
         'markdown.extensions.toc', # table of contents
         'markdown.extensions.nl2br', # newlines to <br>
@@ -22,10 +21,6 @@ def convert_markdown(value):
         'markdown.extensions.smarty',
         ]
     extension_configs = {
-        'codehilite': {
-            'guess_lang': False,
-            'linenums': False
-        },
         'toc': {
             'permalink': True
         }
