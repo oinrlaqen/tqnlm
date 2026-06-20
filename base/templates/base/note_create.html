@@ -282,12 +282,16 @@
     /* Token colors */
     .hl-heading      { color: #111827; font-weight: inherit; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; }
     .hl-bold         { font-weight: inherit; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; color: inherit; }
-    .hl-italic       { font-style: italic; color: inherit; }
+    .hl-italic       { font-style: normal; color: inherit; transform: skewX(-10deg); display: inline-block; }
     .hl-bold-italic  { font-weight: inherit; font-style: italic; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; color: inherit; }
     .hl-code         { color: #7C3AED; border-radius: 3px; }
+    .hl-strike       { color: inherit; text-decoration: line-through; }
+    .hl-underline    { color: #059669; vertical-align: baseline; font-size: inherit; }
+    .hl-subscript    { color: #059669; vertical-align: baseline; font-size: inherit; }
+    .hl-superscript  { color: #059669; vertical-align: baseline; font-size: inherit; }
     .hl-codeblock    { color: #7C3AED; }
     .hl-link-text    { color: #DC2626; text-decoration: none; }
-    .hl-link-url     { color: #06B6D4; text-decoration: underline; font-style: italic; }
+    .hl-link-url     { color: #06B6D4; text-decoration: underline; font-style: normal; transform: skewX(-10deg); display: inline-block; }
     .hl-image        { color: #c678dd; }
     .hl-hr           { color: #4b5263; }
     .hl-list-marker  { color: #F97316; font-weight: 700; }
@@ -643,6 +647,10 @@
             .replace(/!\[([^\]]*)\]\(([^)]*)\)/g, '<span class="hl-image">$&</span>')
             .replace(/(?<!!)\[([^\]]*)\]\(([^)]*)\)/g, '<span class="hl-link-text">[$1]</span><span class="hl-link-url">($2)</span>')
             .replace(/`([^`]+)`/g, '<span class="hl-code">$&</span>')
+            .replace(/~~([^~]+)~~/g, '<span class="hl-strike">$&</span>')
+            .replace(/&lt;ins&gt;([^&]*(?:&(?!lt;\/ins&gt;)[^&]*)*)&lt;\/ins&gt;/g, '<span class="hl-underline">$&</span>')
+            .replace(/&lt;sub&gt;([^&]*(?:&(?!lt;\/sub&gt;)[^&]*)*)&lt;\/sub&gt;/g, '<span class="hl-subscript">$&</span>')
+            .replace(/&lt;sup&gt;([^&]*(?:&(?!lt;\/sup&gt;)[^&]*)*)&lt;\/sup&gt;/g, '<span class="hl-superscript">$&</span>')
             .replace(/\*\*\*([^*]+)\*\*\*/g, '<span class="hl-bold-italic">$&</span>')
             .replace(/(?<!\*)\*\*(?!\*)([^*]+)(?<!\*)\*\*(?!\*)/g, '<span class="hl-bold">$&</span>')
             .replace(/(^|(?<=\s))__([^_]+)__((?=\s)|$)/g, '$1<span class="hl-bold">__$2__</span>$3')

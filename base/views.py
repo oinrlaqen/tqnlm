@@ -21,6 +21,9 @@ from django.http import JsonResponse
 
 from django.core.exceptions import PermissionDenied
 
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+
 import io
 import os
 import zipfile
@@ -325,29 +328,31 @@ def import_notes(request):
 def change_password(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
- 
+
     try:
         body = json_module.loads(request.body)
         current_password = body.get('current_password', '')
         new_password = body.get('new_password', '')
     except (ValueError, KeyError):
         return JsonResponse({'error': 'Invalid request'}, status=400)
- 
+
     if not current_password or not new_password:
         return JsonResponse({'ok': False, 'error': 'All fields are required'}, status=400)
- 
+
     if not request.user.check_password(current_password):
         return JsonResponse({'ok': False, 'error': 'Current password is incorrect'})
- 
-    if len(new_password) < 8:
-        return JsonResponse({'ok': False, 'error': 'Password must contain at least 8 characters'})
+
+    try:
+        validate_password(new_password, user=request.user)
+    except DjangoValidationError as e:
+        return JsonResponse({'ok': False, 'error': ' '.join(e.messages)})
 
     if request.user.check_password(new_password):
         return JsonResponse({'ok': False, 'error': 'New password must be different'})
- 
+
     request.user.set_password(new_password)
     request.user.save()
 
     update_session_auth_hash(request, request.user)
- 
+
     return JsonResponse({'ok': True})
