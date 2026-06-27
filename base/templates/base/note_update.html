@@ -306,21 +306,22 @@
     }
 
     /* Token colors */
-    .hl-heading      { color: #111827; font-weight: inherit; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; }
-    .hl-bold         { font-weight: inherit; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; color: inherit; }
-    .hl-italic       { font-style: normal; color: inherit; transform: skewX(-10deg); display: inline-block; }
-    .hl-bold-italic  { font-weight: inherit; font-style: italic; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; color: inherit; }
-    .hl-code         { color: #7C3AED; border-radius: 3px; }
+    .hl-heading      { color: #111827; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; }
+    .hl-bold         { color: inherit; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; }
+    .hl-italic       { color: inherit; font-style: italic; }
+    .hl-bold-italic  { color: inherit; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; font-style: italic; }
+    .hl-code         { color: #7C3AED; }
     .hl-strike       { color: inherit; text-decoration: line-through; }
-    .hl-underline    { color: #059669; vertical-align: baseline; font-size: inherit; }
-    .hl-subscript    { color: #059669; vertical-align: baseline; font-size: inherit; }
-    .hl-superscript  { color: #059669; vertical-align: baseline; font-size: inherit; }
+    .hl-underline    { color: #059669; }
+    .hl-subscript    { color: #059669; }
+    .hl-superscript  { color: #059669; }
     .hl-codeblock    { color: #7C3AED; }
-    .hl-link-text    { color: #DC2626; text-decoration: none; }
-    .hl-link-url     { color: #06B6D4; text-decoration: underline; font-style: normal; transform: skewX(-10deg); display: inline-block; }
+    .hl-link-text    { color: #DC2626; }
+    .hl-link-url     { color: #06B6D4; }
     .hl-image        { color: #c678dd; }
-    .hl-hr           { color: #4b5263; }
-    .hl-list-marker  { color: #F97316; font-weight: 700; }
+    .hl-hr           { color: #4b5563; }
+    .hl-list-marker  { color: #F97316; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; }
+    .hl-quote        { color: #2563EB; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; }
     .hl-plain        { color: var(--text-primary); }
 
     /* ── Format popup ─────────────────────────────────────────── */
@@ -352,6 +353,8 @@
         transition: background .1s;
     }
     .fmt-btn:hover { background: #f0eeea; }
+
+    .fmt-btn.active { background: #eeeaf5; color: var(--accent); }
 
 </style>
 
@@ -858,18 +861,18 @@
 
     function formatInline(esc) {
         return esc
-            .replace(/!\[([^\]]*)\]\(([^)]*)\)/g, '<span class="hl-image">$&</span>')
-            .replace(/(?<!!)\[([^\]]*)\]\(([^)]*)\)/g, '<span class="hl-link-text">[$1]</span><span class="hl-link-url">($2)</span>')
-            .replace(/`([^`]+)`/g, '<span class="hl-code">$&</span>')
-            .replace(/~~([^~]+)~~/g, '<span class="hl-strike">$&</span>')
-            .replace(/&lt;ins&gt;([^&]*(?:&(?!lt;\/ins&gt;)[^&]*)*)&lt;\/ins&gt;/g, '<span class="hl-underline">$&</span>')
-            .replace(/&lt;sub&gt;([^&]*(?:&(?!lt;\/sub&gt;)[^&]*)*)&lt;\/sub&gt;/g, '<span class="hl-subscript">$&</span>')
-            .replace(/&lt;sup&gt;([^&]*(?:&(?!lt;\/sup&gt;)[^&]*)*)&lt;\/sup&gt;/g, '<span class="hl-superscript">$&</span>')
-            .replace(/\*\*\*([^*]+)\*\*\*/g, '<span class="hl-bold-italic">$&</span>')
-            .replace(/(?<!\*)\*\*(?!\*)([^*]+)(?<!\*)\*\*(?!\*)/g, '<span class="hl-bold">$&</span>')
-            .replace(/(^|(?<=\s))__([^_]+)__((?=\s)|$)/g, '$1<span class="hl-bold">__$2__</span>$3')
-            .replace(/(?<!\*)\*(?!\*)([^*]+)(?<!\*)\*(?!\*)/g, '<span class="hl-italic">$&</span>')
-            .replace(/(^|(?<=\s))_([^_]+)_((?=\s)|$)/g, '$1<span class="hl-italic">_$2_</span>$3');
+            .replace(/!\[([^\]\n]*)\]\(([^)\n]*)\)/g, '<span class="hl-image">$&</span>')
+            .replace(/(?<!!)\[([^\]\n]*)\]\(([^)\n]*)\)/g, '<span class="hl-link-text">[$1]</span><span class="hl-link-url">($2)</span>')
+            .replace(/`([^`\n]+)`/g, '<span class="hl-code">$&</span>')
+            .replace(/~~([^~\n]+?)~~/g, '<span class="hl-strike">$&</span>')
+            .replace(/&lt;ins&gt;([^<\n]+?)&lt;\/ins&gt;/g, '<span class="hl-underline">$&</span>')
+            .replace(/&lt;sub&gt;([^<\n]+?)&lt;\/sub&gt;/g, '<span class="hl-subscript">$&</span>')
+            .replace(/&lt;sup&gt;([^<\n]+?)&lt;\/sup&gt;/g, '<span class="hl-superscript">$&</span>')
+            .replace(/\*\*\*([^*\n]+?)\*\*\*/g, '<span class="hl-bold-italic">$&</span>')
+            .replace(/(?<!\*)\*\*(?!\*)([^*\n]+?)(?<!\*)\*\*(?!\*)/g, '<span class="hl-bold">$&</span>')
+            .replace(/(^|(?<=\s))__([^_\n]+?)__((?=\s)|$)/g, '$1<span class="hl-bold">__$2__</span>$3')
+            .replace(/(?<!\*)\*(?!\*)([^*\n]+?)(?<!\*)\*(?!\*)/g, '<span class="hl-italic">$&</span>')
+            .replace(/(^|(?<=\s))_([^_\n]+?)_((?=\s)|$)/g, '$1<span class="hl-italic">_$2_</span>$3');
     }
 
     function renderHighlight() {
@@ -894,6 +897,12 @@
 
             if (/^(-{3,}|\*{3,}|_{3,})$/.test(line.trim()))
                 return `<span class="hl-hr">${esc}</span>`;
+
+            if (/^>+\s?/.test(line)) {
+                const quoteMatch = esc.match(/^((?:&gt;)+)\s?(.*)/);
+                if (quoteMatch)
+                    return `<span class="hl-quote">${quoteMatch[1]}</span><span class="hl-plain"> ${formatInline(quoteMatch[2])}</span>`;
+            }
 
             const listMatch = esc.match(/^(\s*(?:[-*+]|\d+\.)\s+)(.*)$/);
             if (listMatch) {
@@ -940,8 +949,35 @@
             popup.style.top  = (y - popup.offsetHeight - 8) + 'px';
         }
 
+        let activeStyledRuns = new Map();
+
         function hidePopup() {
             popup.classList.remove('visible');
+            activeStyledRuns = new Map();
+            popup.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
+        }
+
+        function buildTextStyleMap(text) {
+            const map = new Array(text.length).fill(null);
+            const patterns = [
+                { fmt: 'bold',          re: /\*\*([^*]+?)\*\*|__([^_]+?)__/g,                                           open: 2, close: 2 },
+                { fmt: 'italic',        re: /(?<!\*)\*(?!\*)([^*]+?)(?<!\*)\*(?!\*)|(?<!_)_(?!_)([^_]+?)(?<!_)_(?!_)/g, open: 1, close: 1 },
+                { fmt: 'strikethrough', re: /~~(.+?)~~/g,                                                               open: 2, close: 2 },
+                { fmt: 'code',          re: /`([^`]+?)`/g,                                                              open: 1, close: 1 },
+                { fmt: 'underline',     re: /<ins>([\s\S]+?)<\/ins>/g,                                                  open: 5, close: 6 },
+            ];
+            for (const { fmt, re } of patterns) {
+                let m;
+                re.lastIndex = 0;
+                while ((m = re.exec(text)) !== null) {
+                    const spanStart = m.index;
+                    const spanEnd   = m.index + m[0].length;
+                    for (let i = spanStart; i < spanEnd; i++) {
+                        if (!map[i]) map[i] = { fmt, spanStart, spanEnd };
+                    }
+                }
+            }
+            return map;
         }
 
         // Listen for mouseup on the textarea to detect a selection
@@ -950,6 +986,21 @@
                 const start = ta.selectionStart;
                 const end   = ta.selectionEnd;
                 if (start === end) { hidePopup(); return; }
+
+                // Build style map and find all runs touched by the selection
+                const map = buildTextStyleMap(ta.value);
+                activeStyledRuns = new Map();
+                for (let i = start; i < end; i++) {
+                    const entry = map[i];
+                    if (entry && !activeStyledRuns.has(entry.fmt)) {
+                        activeStyledRuns.set(entry.fmt, { spanStart: entry.spanStart, spanEnd: entry.spanEnd });
+                    }
+                }
+
+                // Fire (highlight) buttons whose format is active in the selection
+                popup.querySelectorAll('.fmt-btn').forEach(b => {
+                    b.classList.toggle('active', activeStyledRuns.has(b.dataset.fmt));
+                });
 
                 showPopup(e.clientX, e.clientY);
             }, 10);
@@ -961,6 +1012,10 @@
                 hidePopup();
             }
         });
+
+        // Hide popup when user scrolls
+        window.addEventListener('scroll', hidePopup, { passive: true });
+        ta.addEventListener('scroll', hidePopup, { passive: true });
 
         // Handle format button clicks
         popup.addEventListener('mousedown', function (e) {
@@ -988,20 +1043,38 @@
             let newText, newStart, newEnd;
 
             if (fmt === 'plain') {
-                const stripped = sel
+            const stripped = sel
+                    .replace(/__([^_]+?)__/g, '$1')
                     .replace(/\*\*([^*]+?)\*\*/g, '$1')
+                    .replace(/(?<!_)_(?!_)([^_]+?)(?<!_)_(?!_)/g, '$1')
                     .replace(/\*([^*]+?)\*/g, '$1')
                     .replace(/~~(.+?)~~/g, '$1')
                     .replace(/`([^`]+?)`/g, '$1')
-                    .replace(/<ins>([\s\S]+?)<\/ins>/g, '$1');
+                    .replace(/<ins>([\s\S]+?)<\/ins>/g, '$1')
+                    .replace(/<sub>([\s\S]+?)<\/sub>/g, '$1')
+                    .replace(/<sup>([\s\S]+?)<\/sup>/g, '$1')
+                    .replace(/#{1,6}\s?/g, '')
+                    .replace(/\[([^\]]+?)\]\(([^)]+?)\)/g, '$1 $2')
+                    .replace(/^>\s?/gm, '')
+                    .replace(/^(\s*)(\d+\.|-|\*|\+)\s+/gm, '$1');
                 newText  = text.slice(0, start) + stripped + text.slice(end);
                 newStart = start;
                 newEnd   = start + stripped.length;
-            } else if (config.wrap) {
-                const [open, close] = config.wrap;
-                newText  = text.slice(0, start) + open + sel + close + text.slice(end);
-                newStart = start + open.length;
-                newEnd   = end   + open.length;
+                } else if (config.wrap) {
+                    const [open, close] = config.wrap;
+                    if (activeStyledRuns.has(fmt)) {
+                        // Unwrap: remove the entire styled run's markers
+                        const run   = activeStyledRuns.get(fmt);
+                        const inner = text.slice(run.spanStart + open.length, run.spanEnd - close.length);
+                        newText  = text.slice(0, run.spanStart) + inner + text.slice(run.spanEnd);
+                        newStart = run.spanStart;
+                        newEnd   = run.spanStart + inner.length;
+                    } else {
+                        // Wrap: apply format to the selection
+                        newText  = text.slice(0, start) + open + sel + close + text.slice(end);
+                        newStart = start + open.length;
+                        newEnd   = end   + open.length;
+                    }
             } else if (config.linePrefix) {
                 const prefix        = config.linePrefix;
                 const lineStart     = text.lastIndexOf('\n', start - 1) + 1;
@@ -1019,12 +1092,17 @@
             }
 
             ta.focus();
+            const isUnwrap = config?.wrap && activeStyledRuns.has(fmt);
             const affectedStart = config?.linePrefix
                 ? text.lastIndexOf('\n', start - 1) + 1
-                : start;
+                : isUnwrap
+                    ? activeStyledRuns.get(fmt).spanStart
+                    : start;
             const affectedEnd = config?.linePrefix
                 ? (text.indexOf('\n', end) === -1 ? text.length : text.indexOf('\n', end))
-                : end;
+                : isUnwrap
+                    ? activeStyledRuns.get(fmt).spanEnd
+                    : end;
             const replacement = newText.slice(affectedStart, newText.length - (text.length - affectedEnd));
             ta.setSelectionRange(affectedStart, affectedEnd);
             document.execCommand('insertText', false, replacement);
