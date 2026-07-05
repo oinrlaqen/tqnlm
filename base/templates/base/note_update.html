@@ -308,8 +308,8 @@
     /* Token colors */
     .hl-heading      { color: #111827; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; }
     .hl-bold         { color: inherit; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; }
-    .hl-italic       { color: inherit; font-style: italic; }
-    .hl-bold-italic  { color: inherit; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; font-style: italic; }
+    .hl-italic       { color: #555555; text-decoration-line: underline; text-decoration-style: dashed; text-underline-offset: 5px; }
+    .hl-bold-italic  { color: inherit; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; }
     .hl-code         { color: #7C3AED; }
     .hl-strike       { color: inherit; text-decoration: line-through; }
     .hl-underline    { color: #059669; }
@@ -960,11 +960,11 @@
         function buildTextStyleMap(text) {
             const map = new Array(text.length).fill(null);
             const patterns = [
-                { fmt: 'bold',          re: /\*\*([^*]+?)\*\*|__([^_]+?)__/g,                                           open: 2, close: 2 },
-                { fmt: 'italic',        re: /(?<!\*)\*(?!\*)([^*]+?)(?<!\*)\*(?!\*)|(?<!_)_(?!_)([^_]+?)(?<!_)_(?!_)/g, open: 1, close: 1 },
-                { fmt: 'strikethrough', re: /~~(.+?)~~/g,                                                               open: 2, close: 2 },
-                { fmt: 'code',          re: /`([^`]+?)`/g,                                                              open: 1, close: 1 },
-                { fmt: 'underline',     re: /<ins>([\s\S]+?)<\/ins>/g,                                                  open: 5, close: 6 },
+                { fmt: 'bold',          re: /\*\*([^*]+?)\*\*|__([^_]+?)__/g,                                                                    open: 2, close: 2 },
+                { fmt: 'italic',        re: /(?<!\*)\*(?!\*)([^*\n]+?)(?<!\*)\*(?!\*)|(^|(?<=\s))(?<!_)_(?!_)([^_\n]+?)(?<!_)_(?!_)((?=\s)|$)/g, open: 1, close: 1 },
+                { fmt: 'strikethrough', re: /~~(.+?)~~/g,                                                                                        open: 2, close: 2 },
+                { fmt: 'code',          re: /`([^`]+?)`/g,                                                                                       open: 1, close: 1 },
+                { fmt: 'underline',     re: /<ins>([\s\S]+?)<\/ins>/g,                                                                           open: 5, close: 6 },
             ];
             for (const { fmt, re } of patterns) {
                 let m;
