@@ -282,8 +282,8 @@
     /* Token colors */
     .hl-heading      { color: #111827; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; }
     .hl-bold         { color: inherit; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; }
-    .hl-italic       { color: inherit; font-style: italic; }
-    .hl-bold-italic  { color: inherit; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; font-style: italic; }
+    .hl-italic       { color: #555555; text-decoration-line: underline; text-decoration-style: dashed; text-underline-offset: 5px; }
+    .hl-bold-italic  { color: inherit; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; }
     .hl-code         { color: #7C3AED; }
     .hl-strike       { color: inherit; text-decoration: line-through; }
     .hl-underline    { color: #059669; }
@@ -297,6 +297,7 @@
     .hl-list-marker  { color: #F97316; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; }
     .hl-quote        { color: #2563EB; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; }
     .hl-plain        { color: var(--text-primary); }
+    .hl-space        { background: rgba(249, 115, 22, 0.25); border-radius: 2px; }
 
     /* ── Format popup ─────────────────────────────────────────── */
     #format-popup {
@@ -698,7 +699,8 @@
             .replace(/(?<!\*)\*\*(?!\*)([^*\n]+?)(?<!\*)\*\*(?!\*)/g, '<span class="hl-bold">$&</span>')
             .replace(/(^|(?<=\s))__([^_\n]+?)__((?=\s)|$)/g, '$1<span class="hl-bold">__$2__</span>$3')
             .replace(/(?<!\*)\*(?!\*)([^*\n]+?)(?<!\*)\*(?!\*)/g, '<span class="hl-italic">$&</span>')
-            .replace(/(^|(?<=\s))_([^_\n]+?)_((?=\s)|$)/g, '$1<span class="hl-italic">_$2_</span>$3');
+            .replace(/(^|(?<=\s))_([^_\n]+?)_((?=\s)|$)/g, '$1<span class="hl-italic">_$2_</span>$3')
+            .replace(/ {2,}/g, '<span class="hl-space">$&</span>');
     }
 
     function renderHighlight() {
@@ -786,11 +788,11 @@
         function buildTextStyleMap(text) {
             const map = new Array(text.length).fill(null);
             const patterns = [
-                { fmt: 'bold',          re: /\*\*([^*]+?)\*\*|__([^_]+?)__/g,                                           open: 2, close: 2 },
-                { fmt: 'italic',        re: /(?<!\*)\*(?!\*)([^*]+?)(?<!\*)\*(?!\*)|(?<!_)_(?!_)([^_]+?)(?<!_)_(?!_)/g, open: 1, close: 1 },
-                { fmt: 'strikethrough', re: /~~(.+?)~~/g,                                                               open: 2, close: 2 },
-                { fmt: 'code',          re: /`([^`]+?)`/g,                                                              open: 1, close: 1 },
-                { fmt: 'underline',     re: /<ins>([\s\S]+?)<\/ins>/g,                                                  open: 5, close: 6 },
+                { fmt: 'bold',          re: /\*\*([^*]+?)\*\*|__([^_]+?)__/g,                                                                    open: 2, close: 2 },
+                { fmt: 'italic',        re: /(?<!\*)\*(?!\*)([^*\n]+?)(?<!\*)\*(?!\*)|(^|(?<=\s))(?<!_)_(?!_)([^_\n]+?)(?<!_)_(?!_)((?=\s)|$)/g, open: 1, close: 1 },
+                { fmt: 'strikethrough', re: /~~(.+?)~~/g,                                                                                        open: 2, close: 2 },
+                { fmt: 'code',          re: /`([^`]+?)`/g,                                                                                       open: 1, close: 1 },
+                { fmt: 'underline',     re: /<ins>([\s\S]+?)<\/ins>/g,                                                                           open: 5, close: 6 },
             ];
             for (const { fmt, re } of patterns) {
                 let m;
@@ -870,7 +872,7 @@
 
             if (fmt === 'plain') {
             const stripped = sel
-                    .replace(/__([^_]+?)__/g, '$1')
+                    .replace(/__([\s\S]+?)__/g, '$1')
                     .replace(/\*\*([^*]+?)\*\*/g, '$1')
                     .replace(/(?<!_)_(?!_)([^_]+?)(?<!_)_(?!_)/g, '$1')
                     .replace(/\*([^*]+?)\*/g, '$1')
@@ -882,7 +884,8 @@
                     .replace(/#{1,6}\s?/g, '')
                     .replace(/\[([^\]]+?)\]\(([^)]+?)\)/g, '$1 $2')
                     .replace(/^>\s?/gm, '')
-                    .replace(/^(\s*)(\d+\.|-|\*|\+)\s+/gm, '$1');
+                    .replace(/^(\s*)(\d+\.|-|\*|\+)\s+/gm, '$1')
+                    .replace(/ {2,}/g, ' ');
                 newText  = text.slice(0, start) + stripped + text.slice(end);
                 newStart = start;
                 newEnd   = start + stripped.length;

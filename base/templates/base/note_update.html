@@ -323,6 +323,7 @@
     .hl-list-marker  { color: #F97316; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; }
     .hl-quote        { color: #2563EB; text-shadow: -0.15px 0 0 currentColor, 0.15px 0 0 currentColor; }
     .hl-plain        { color: var(--text-primary); }
+    .hl-space        { background: rgba(249, 115, 22, 0.25); border-radius: 2px; }
 
     /* ── Format popup ─────────────────────────────────────────── */
     #format-popup {
@@ -356,6 +357,55 @@
 
     .fmt-btn.active { background: #eeeaf5; color: var(--accent); }
 
+    /* ── Unsaved-changes modal ────────────────────────────────── */
+    .unsaved-popup-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0,0,0,.35);
+    }
+    .unsaved-popup-overlay.visible { display: flex; }
+
+    .unsaved-popup-box {
+        width: 320px;
+        max-width: calc(100vw - 32px);
+        background: var(--surface);
+        border: 0.5px solid var(--border-mid);
+        border-radius: var(--radius-lg);
+        padding: 22px 22px 18px;
+        box-shadow: 0 16px 40px rgba(0,0,0,.18);
+        animation: unsaved-pop-in .15s ease-out;
+    }
+
+    @keyframes unsaved-pop-in {
+        from { opacity: 0; transform: translateY(4px) scale(.98); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .unsaved-popup-text {
+        font-size: 18px;
+        font-family: var(--font-sans);
+        color: var(--text-primary);
+        line-height: 1.5;
+        margin-bottom: 18px;
+    }
+    .unsaved-popup-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+    .unsaved-popup-btn-danger {
+        border: 0.5px solid transparent;
+        background: var(--accent);
+        color: #fff;
+        font-weight: 500;
+        transition: background .15s, transform .1s;
+    }
+    .unsaved-popup-btn-danger:hover { background: var(--accent-dark); }
+    .unsaved-popup-btn-danger:active { transform: scale(0.97); }
+
 </style>
 
 <!-- GitHub + xcode Markdown CSS (used in preview) -->
@@ -381,7 +431,7 @@
             autocomplete="off"
         >
         <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-            <a href="{% url 'notes' %}" class="btn-ghost" id="all-notes-btn">All Notes</a>
+            <a href="{% url 'notes' %}" class="btn-ghost" id="all-notes-btn" onclick="return handleAllNotesClick(event)">All Notes</a>
             <button type="button" id="preview-toggle-btn" class="btn-ghost" onclick="togglePreview()">
                 Preview
             </button>
@@ -501,6 +551,17 @@
         <button type="button" class="fmt-btn" data-fmt="underline" title="Underline"><u>U</u></button>
     </div>
 
+    <!-- ── Unsaved changes modal ── -->
+    <div id="unsaved-popup-overlay" class="unsaved-popup-overlay">
+        <div class="unsaved-popup-box">
+            <p class="unsaved-popup-text">Unsaved changes. Leave the page?</p>
+            <div class="unsaved-popup-actions">
+                <button type="button" class="toolbar-btn toolbar-btn-ghost" onclick="hideUnsavedModal()">No, back to edit</button>
+                <button type="button" class="toolbar-btn unsaved-popup-btn-danger" onclick="confirmLeaveNotes()">Yes</button>
+            </div>
+        </div>
+    </div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script>
@@ -553,6 +614,25 @@
         saveBtn.innerHTML = 'Save';
         saveBtn.classList.remove('toolbar-btn-accent');
         saveBtn.classList.add('toolbar-btn-unsaved');
+    }
+
+    /* ── Warn before leaving via "All Notes" if there are unsaved changes ── */
+    function handleAllNotesClick(e) {
+        e.preventDefault();
+        const hasUnsavedChanges = saveBtn.classList.contains('toolbar-btn-unsaved');
+        if (hasUnsavedChanges) {
+            document.getElementById('unsaved-popup-overlay').classList.add('visible');
+        } else {
+            window.location.href = document.getElementById('all-notes-btn').href;
+        }
+    }
+
+    function hideUnsavedModal() {
+        document.getElementById('unsaved-popup-overlay').classList.remove('visible');
+    }
+
+    function confirmLeaveNotes() {
+        window.location.href = document.getElementById('all-notes-btn').href;
     }
 
     // Default state
@@ -872,7 +952,8 @@
             .replace(/(?<!\*)\*\*(?!\*)([^*\n]+?)(?<!\*)\*\*(?!\*)/g, '<span class="hl-bold">$&</span>')
             .replace(/(^|(?<=\s))__([^_\n]+?)__((?=\s)|$)/g, '$1<span class="hl-bold">__$2__</span>$3')
             .replace(/(?<!\*)\*(?!\*)([^*\n]+?)(?<!\*)\*(?!\*)/g, '<span class="hl-italic">$&</span>')
-            .replace(/(^|(?<=\s))_([^_\n]+?)_((?=\s)|$)/g, '$1<span class="hl-italic">_$2_</span>$3');
+            .replace(/(^|(?<=\s))_([^_\n]+?)_((?=\s)|$)/g, '$1<span class="hl-italic">_$2_</span>$3')
+            .replace(/ {2,}/g, '<span class="hl-space">$&</span>');
     }
 
     function renderHighlight() {
@@ -1044,7 +1125,7 @@
 
             if (fmt === 'plain') {
             const stripped = sel
-                    .replace(/__([^_]+?)__/g, '$1')
+                    .replace(/__([\s\S]+?)__/g, '$1')
                     .replace(/\*\*([^*]+?)\*\*/g, '$1')
                     .replace(/(?<!_)_(?!_)([^_]+?)(?<!_)_(?!_)/g, '$1')
                     .replace(/\*([^*]+?)\*/g, '$1')
@@ -1056,7 +1137,8 @@
                     .replace(/#{1,6}\s?/g, '')
                     .replace(/\[([^\]]+?)\]\(([^)]+?)\)/g, '$1 $2')
                     .replace(/^>\s?/gm, '')
-                    .replace(/^(\s*)(\d+\.|-|\*|\+)\s+/gm, '$1');
+                    .replace(/^(\s*)(\d+\.|-|\*|\+)\s+/gm, '$1')
+                    .replace(/ {2,}/g, ' ');
                 newText  = text.slice(0, start) + stripped + text.slice(end);
                 newStart = start;
                 newEnd   = start + stripped.length;
