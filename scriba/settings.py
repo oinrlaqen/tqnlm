@@ -65,9 +65,16 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
     'base.apps.BaseConfig',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
     'axes',
 ]
+
+SITE_ID = 1
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -79,6 +86,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'axes.middleware.AxesMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
 ]
 
 AXES_FAILURE_LIMIT = 5        # lock after 5 failed attempts
@@ -87,6 +95,7 @@ AXES_LOCKOUT_CALLABLE = "base.views.lockout_response"
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
     'axes.backends.AxesStandaloneBackend',
 ]
 
@@ -108,6 +117,39 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'scriba.wsgi.application'
+
+
+# Allauth settings
+
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+LOGIN_REDIRECT_URL = 'notes'
+ACCOUNT_LOGOUT_REDIRECT_URL = 'notes'
+ACCOUNT_ADAPTER = 'base.adapters.AccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'base.adapters.SocialAccountAdapter'
+LOGIN_URL = 'login'
+AUTH_USER_MODEL = 'base.User'
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APP': {
+            'client_id': os.environ.get('GOOGLE_CLIENT_ID'),
+            'secret': os.environ.get('GOOGLE_CLIENT_SECRET'),
+            'key': ''  # should be empty, not used by Google
+        },
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+    }
+}
 
 
 # Database

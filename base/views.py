@@ -30,15 +30,20 @@ import zipfile
 import json as json_module
 
 class CustomLoginView(LoginView):
-    template_name = 'base/login.html'
+    template_name = 'base/auth.html'
     authentication_form = EmailLoginForm
     redirect_authenticated_user = True
 
     def get_success_url(self):
         return reverse_lazy('notes')
-    
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['active_tab'] = 'login'
+        return context
+
 class RegisterPage(FormView):
-    template_name = 'base/register.html'
+    template_name = 'base/auth.html'
     form_class = EmailRegisterForm
     redirect_authenticated_user = True
     success_url = reverse_lazy('notes')
@@ -52,6 +57,11 @@ class RegisterPage(FormView):
         if self.request.user.is_authenticated:
             return redirect('notes')
         return super().get(*args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['active_tab'] = 'signup'
+        return context
 
 class NoteList(LoginRequiredMixin, ListView):
     model = Note
