@@ -1,0 +1,303 @@
+{% extends 'base/main.html' %}
+{% load socialaccount %}
+{% block content %}
+
+<style>
+    .auth-wrap {
+        max-width: 380px;
+        margin: 4rem auto 0;
+        padding: 0 1rem;
+    }
+    .auth-card {
+        background: var(--surface);
+        border: 0.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 32px 30px 36px;
+    }
+    .auth-tabs {
+        display: flex;
+        background: #f7f6f4;
+        border: 0.5px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 4px;
+        margin-bottom: 1.75rem;
+    }
+    .auth-tabs button {
+        flex: 1;
+        padding: 8px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        font-size: 13px;
+        font-weight: 500;
+        font-family: var(--font-sans);
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: background .15s, color .15s, box-shadow .15s;
+    }
+    .auth-tabs button[aria-selected="true"] {
+        background: var(--accent);
+        color: #fff;
+        box-shadow: 0 4px 10px -4px rgba(83,74,183,.45);
+    }
+    .auth-panel h1 {
+        font-size: 20px;
+        font-weight: 500;
+        margin-bottom: 1.5rem;
+        color: var(--text-primary);
+    }
+    .form-field { margin-bottom: 1rem; }
+    .form-field label {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        margin-bottom: 5px;
+    }
+    .form-field input[type="text"],
+    .form-field input[type="email"],
+    .form-field input[type="password"] {
+        width: 100%;
+        height: 36px;
+        padding: 0 12px;
+        border: 0.5px solid var(--border);
+        border-radius: var(--radius-md);
+        font-size: 13px;
+        font-family: var(--font-sans);
+        background: var(--surface);
+        color: var(--text-primary);
+        outline: none;
+        transition: border .15s;
+        box-sizing: border-box;
+    }
+    .form-field input[type="text"]:focus,
+    .form-field input[type="email"]:focus,
+    .form-field input[type="password"]:focus {
+        border-color: var(--border-mid);
+    }
+    .form-field input.input-error { border-color: #d97060; }
+    .form-field input::placeholder { color: var(--text-hint); }
+    .field-errors {
+        margin-top: 5px;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+    .field-error {
+        font-size: 12px;
+        color: var(--danger);
+        background: var(--danger-bg);
+        border-radius: var(--radius-md);
+        padding: 5px 10px;
+        line-height: 1.4;
+    }
+    .btn-auth {
+        width: 100%;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius-md);
+        font-size: 13px;
+        font-weight: 500;
+        font-family: var(--font-sans);
+        cursor: pointer;
+        transition: background .15s;
+        margin-top: 1.5rem;
+    }
+    .btn-auth:hover { background: var(--accent-dark); }
+    .auth-divider {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 1rem;
+        font-size: 13px;
+        color: var(--text-secondary);
+    }
+    .auth-divider::before,
+    .auth-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+    }
+    .btn-google {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 36px;
+        margin-top: 1rem;
+        border: 0.5px solid var(--border);
+        border-radius: var(--radius-md);
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-primary);
+        text-decoration: none;
+    }
+    .btn-google:hover { background: #f7f6f4; text-decoration: none; }
+    [hidden] { display: none !important; }
+</style>
+
+<div class="auth-wrap">
+    <div class="auth-card">
+        <div class="auth-tabs" role="tablist" aria-label="Authentication">
+            <button type="button" role="tab" id="tab-login"
+                aria-selected="{% if active_tab == 'login' %}true{% else %}false{% endif %}"
+                aria-controls="panel-login" onclick="swapAuthTab('login')">Log in</button>
+            <button type="button" role="tab" id="tab-signup"
+                aria-selected="{% if active_tab == 'signup' %}true{% else %}false{% endif %}"
+                aria-controls="panel-signup" onclick="swapAuthTab('signup')">Create account</button>
+        </div>
+
+        {# ---------------- LOGIN PANEL ---------------- #}
+
+        <section role="tabpanel" id="panel-login" aria-labelledby="tab-login" class="auth-panel"
+            {% if active_tab != 'login' %}hidden{% endif %}>
+            <h1>Welcome!</h1>
+            <form method="POST" action="{% url 'login' %}" id="login-form">
+                {% csrf_token %}
+
+                {% if active_tab == 'login' %}
+                    <div class="form-field">
+                        <label for="{{ form.username.id_for_label }}">Email</label>
+                        <input
+                            type="email"
+                            name="{{ form.username.html_name }}"
+                            id="{{ form.username.id_for_label }}"
+                            value="{{ form.username.value|default:'' }}"
+                            {% if form.username.errors %}class="input-error"{% endif %}
+                        >
+                        {% if form.username.errors %}
+                            <div class="field-errors"><span class="field-error">{{ form.username.errors.0 }}</span></div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-field">
+                        <label for="{{ form.password.id_for_label }}">Password</label>
+                        <input
+                            type="password"
+                            name="{{ form.password.html_name }}"
+                            id="{{ form.password.id_for_label }}"
+                            {% if form.password.errors %}class="input-error"{% endif %}
+                        >
+                        {% if form.password.errors %}
+                            <div class="field-errors"><span class="field-error">{{ form.password.errors.0 }}</span></div>
+                        {% endif %}
+                    </div>
+
+                    {% if form.non_field_errors %}
+                        <div class="field-errors" style="margin-bottom: 1rem;">
+                            <span class="field-error">{{ form.non_field_errors.0 }}</span>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="form-field">
+                        <label for="id_login_username">Email</label>
+                        <input type="email" name="username" id="id_login_username">
+                    </div>
+                    <div class="form-field">
+                        <label for="id_login_password">Password</label>
+                        <input type="password" name="password" id="id_login_password">
+                    </div>
+                {% endif %}
+
+                <button type="submit" class="btn-auth">Login</button>
+            </form>
+
+            <div class="auth-divider">or</div>
+            <a href="{% provider_login_url 'google' %}" class="btn-google">Continue with Google</a>
+        </section>
+
+        {# ---------------- SIGNUP PANEL ---------------- #}
+
+        <section role="tabpanel" id="panel-signup" aria-labelledby="tab-signup" class="auth-panel"
+            {% if active_tab != 'signup' %}hidden{% endif %}>
+            <h1>Create your account</h1>
+            <form method="POST" action="{% url 'register' %}" id="register-form">
+                {% csrf_token %}
+
+                {% if active_tab == 'signup' %}
+                    <div class="form-field">
+                        <label for="{{ form.email.id_for_label }}">Email</label>
+                        <input
+                            type="email"
+                            name="{{ form.email.html_name }}"
+                            id="{{ form.email.id_for_label }}"
+                            value="{{ form.email.value|default:'' }}"
+                            {% if form.email.errors %}class="input-error"{% endif %}
+                        >
+                        {% if form.email.errors %}
+                            <div class="field-errors"><span class="field-error">{{ form.email.errors.0 }}</span></div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-field">
+                        <label for="{{ form.password1.id_for_label }}">Password</label>
+                        <input
+                            type="password"
+                            name="{{ form.password1.html_name }}"
+                            id="{{ form.password1.id_for_label }}"
+                            {% if form.password1.errors %}class="input-error"{% endif %}
+                        >
+                        {% if form.password1.errors %}
+                            <div class="field-errors"><span class="field-error">{{ form.password1.errors.0 }}</span></div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-field">
+                        <label for="{{ form.password2.id_for_label }}">Confirm Password</label>
+                        <input
+                            type="password"
+                            name="{{ form.password2.html_name }}"
+                            id="{{ form.password2.id_for_label }}"
+                            {% if form.password2.errors %}class="input-error"{% endif %}
+                        >
+                        {% if form.password2.errors %}
+                            <div class="field-errors"><span class="field-error">{{ form.password2.errors.0 }}</span></div>
+                        {% endif %}
+                    </div>
+
+                    {% if form.non_field_errors %}
+                        <div class="field-errors" style="margin-bottom: 1rem;">
+                            <span class="field-error">{{ form.non_field_errors.0 }}</span>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="form-field">
+                        <label for="id_reg_email">Email</label>
+                        <input type="email" name="email" id="id_reg_email">
+                    </div>
+                    <div class="form-field">
+                        <label for="id_reg_password1">Password</label>
+                        <input type="password" name="password1" id="id_reg_password1">
+                    </div>
+                    <div class="form-field">
+                        <label for="id_reg_password2">Confirm Password</label>
+                        <input type="password" name="password2" id="id_reg_password2">
+                    </div>
+                {% endif %}
+
+                <button type="submit" class="btn-auth">Create account</button>
+            </form>
+
+            <div class="auth-divider">or</div>
+            <a href="{% provider_login_url 'google' %}" class="btn-google">Continue with Google</a>
+        </section>
+    </div>
+</div>
+
+<script>
+function swapAuthTab(which) {
+    const login = which === 'login';
+    document.getElementById('tab-login').setAttribute('aria-selected', login);
+    document.getElementById('tab-signup').setAttribute('aria-selected', !login);
+    document.getElementById('panel-login').hidden = !login;
+    document.getElementById('panel-signup').hidden = login;
+}
+</script>
+
+{% endblock content %}
