@@ -134,6 +134,8 @@ SOCIALACCOUNT_ADAPTER = 'base.adapters.SocialAccountAdapter'
 LOGIN_URL = 'login'
 AUTH_USER_MODEL = 'base.User'
 
+GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI")
+
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'APP': {
