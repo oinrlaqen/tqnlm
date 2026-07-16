@@ -20,6 +20,7 @@ from django.http import HttpResponse
 from django.http import JsonResponse
 
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -66,18 +67,21 @@ class RegisterPage(FormView):
 class NoteList(LoginRequiredMixin, ListView):
     model = Note
     context_object_name = 'notes'
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = Note.objects.filter(user=self.request.user).prefetch_related('tags')
+
+        tag_filter = self.request.GET.get('tag') or ''
+        if tag_filter:
+            qs = qs.filter(tags__id=tag_filter)
+
+        return qs.order_by('-updated_at')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['notes'] = context['notes'].filter(user=self.request.user)
-        
-        tag_filter = self.request.GET.get('tag') or ''
-        if tag_filter:
-            context['notes'] = context['notes'].filter(tags__id=tag_filter)
-        
-        context['notes'] = context['notes'].order_by('-updated_at')
         context['search_input'] = self.request.GET.get('search-area') or ''
-        context['tag_filter'] = tag_filter
+        context['tag_filter'] = self.request.GET.get('tag') or ''
         context['user_tags'] = Tag.objects.filter(user=self.request.user)
         return context
 
@@ -87,7 +91,9 @@ class NoteDetail(LoginRequiredMixin, DetailView):
     template_name = 'base/note.html'
 
     def get_object(self):
-        token = get_object_or_404(NoteToken, token=self.kwargs['token'])
+        token = get_object_or_404(
+            NoteToken.objects.select_related('note'), token=self.kwargs['token']
+        )
         note = token.note
         if note.user != self.request.user:
             raise PermissionDenied
@@ -135,11 +141,12 @@ class NoteUpdate(LoginRequiredMixin, UpdateView):
     template_name = 'base/note_update.html'
 
     def get_success_url(self):
-        token = self.object.tokens.first()
-        return reverse('note-update', kwargs={'token': token.token})
-    
+        return reverse('note-update', kwargs={'token': self.kwargs['token']})
+
     def get_object(self):
-        token = get_object_or_404(NoteToken, token=self.kwargs['token'])
+        token = get_object_or_404(
+            NoteToken.objects.select_related('note'), token=self.kwargs['token']
+        )
         note = token.note
         if note.user != self.request.user:
             raise PermissionDenied
@@ -165,22 +172,25 @@ class NoteUpdate(LoginRequiredMixin, UpdateView):
             return response
 
         # Tags to add: new names and existing tag IDs, both sent on Save
+        new_tags = []
         for name in request.POST.getlist('tags_add_name'):
             name = name.strip()
             if name:
                 tag, _ = Tag.objects.get_or_create(user=request.user, name=name)
-                note.tags.add(tag)
+                new_tags.append(tag)
 
-        for tag_id in request.POST.getlist('tags_add_id'):
-            tag = Tag.objects.filter(pk=tag_id, user=request.user).first()
-            if tag:
-                note.tags.add(tag)
+        add_ids = request.POST.getlist('tags_add_id')
+        if add_ids:
+            new_tags.extend(Tag.objects.filter(pk__in=add_ids, user=request.user))
+
+        if new_tags:
+            note.tags.add(*new_tags)
 
         # Tags to remove: IDs of tags removed in the UI before saving
-        for tag_id in request.POST.getlist('tags_remove_id'):
-            tag = Tag.objects.filter(pk=tag_id, user=request.user).first()
-            if tag:
-                note.tags.remove(tag)
+        remove_ids = request.POST.getlist('tags_remove_id')
+        if remove_ids:
+            tags_to_remove = Tag.objects.filter(pk__in=remove_ids, user=request.user)
+            note.tags.remove(*tags_to_remove)
 
         return response
 
@@ -190,7 +200,9 @@ class NoteDelete(LoginRequiredMixin, DeleteView):
     success_url = reverse_lazy('notes')
 
     def get_object(self):
-        token = get_object_or_404(NoteToken, token=self.kwargs['token'])
+        token = get_object_or_404(
+            NoteToken.objects.select_related('note'), token=self.kwargs['token']
+        )
         note = token.note
         if note.user != self.request.user:
             raise PermissionDenied
@@ -199,7 +211,9 @@ class NoteDelete(LoginRequiredMixin, DeleteView):
 @login_required
 def remove_tag_from_note(request, token, tag_pk):
     if request.method == 'POST':
-        note_token = get_object_or_404(NoteToken, token=token)
+        note_token = get_object_or_404(
+            NoteToken.objects.select_related('note'), token=token
+        )
         note = note_token.note
         if note.user != request.user:
             raise PermissionDenied
@@ -300,7 +314,8 @@ def import_notes(request):
     ALLOWED_EXTENTIONS = {'.md', '.txt'}
     MAX_FILE_SIZE = 5 * 1024 * 1024
     MAX_TITLE_LENGTH = 199
-    created_count = 0
+
+    notes_to_create = []
 
     for f in files:
         name = f.name or ''
@@ -320,19 +335,20 @@ def import_notes(request):
         raw_title = os.path.splitext(name)[0]
         title = raw_title[:MAX_TITLE_LENGTH].strip() or 'Untitled'
 
-        note = Note.objects.create(
+        notes_to_create.append(Note(
             user=request.user,
             title=title,
             description=content,
-        )
+        ))
 
-        NoteToken.objects.create(
-            note=note,
-            token=NoteToken.generate_token(),
-        )
+    with transaction.atomic():
+        created_notes = Note.objects.bulk_create(notes_to_create)
+        NoteToken.objects.bulk_create([
+            NoteToken(note=note, token=NoteToken.generate_token())
+            for note in created_notes
+        ])
 
-        created_count += 1
-    return JsonResponse({'ok': True, 'created': created_count})
+    return JsonResponse({'ok': True, 'created': len(created_notes)})
 
 @login_required
 def change_password(request):
