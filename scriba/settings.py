@@ -83,6 +83,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'base.middleware.UpdateLastActivityMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'axes.middleware.AxesMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -108,6 +109,7 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'base.context_processors.verification_banner',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -220,3 +222,20 @@ STATIC_URL = '/static/'
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+
+
+# Resend integration
+
+RESEND_API_KEY = os.environ["RESEND_API_KEY"]
+DEFAULT_FROM_EMAIL = os.environ["DEFAULT_FROM_EMAIL"]
+
+if ENVIRONMENT == 'production':
+    FRONTEND_BASE_URL = 'https://scriba.me/'
+else:
+    FRONTEND_BASE_URL = 'http://127.0.0.1:8000/'
+
+EMAIL_VERIFICATION_TOKEN_TTL_HOURS = 24
+EMAIL_VERIFICATION_FREEZE_DAYS = 10
+UNVERIFIED_NOTE_LIMIT = 50
+UNVERIFIED_NOTE_MAX_CHARS = 20_000
+VERIFIED_NOTE_MAX_CHARS = 500_000

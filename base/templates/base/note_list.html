@@ -192,6 +192,15 @@
     <a href="{% url 'login' %}" class="btn-logout" style="display:inline-flex;align-items:center;">Login</a>
     {% endif %}
 </div>
+
+{% if unverified_banner %}
+<div id="verifyBanner" data-email="{{ unverified_email }}" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 14px; margin-top:1rem; margin-bottom:1rem; background:rgba(153,60,29,.07); border:1px solid rgba(153,60,29,.18); border-radius:var(--radius-md,8px); font-size:13px; color:var(--text-primary);">
+    <span>Please verify your email to create more notes!</span>
+    <div style="display:flex; align-items:center; gap:8px;">
+        <button type="button" onclick="resendVerification()" style="height:26px; padding:0 12px; font-size:12px; font-weight:500; font-family:var(--font-sans); border:none; border-radius:999px; background:var(--accent); color:#fff; cursor:pointer;">Send verification link</button>
+    </div>
+</div>
+{% endif %}
  
 <!-- Toolbar -->
 <div class="toolbar">
@@ -431,6 +440,8 @@
         { id: {{ tag.id }}, name: "{{ tag.name|escapejs }}", urlDelete: "{% url 'delete_tag' tag.pk %}", urlRename: "{% url 'rename_tag' tag.pk %}" }{% if not forloop.last %},{% endif %}
         {% endfor %}
     ];
+
+    const RESEND_VERIFICATION_URL = "{% url 'resend-verification' %}";
  
     // Pre-selected tag filter from the server (if any)
     const INITIAL_TAG_FILTER = "{{ tag_filter|default:'' }}";

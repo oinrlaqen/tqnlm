@@ -2,7 +2,10 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic.list import ListView
 from django.views.generic.detail import DetailView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView, FormView
+from django.views.decorators.http import require_http_methods
 from django.urls import reverse_lazy, reverse
+
+from django.utils import timezone
 
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.views import LogoutView
@@ -13,8 +16,12 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 
-from .models import Note, Tag, NoteToken
+from django_ratelimit.decorators import ratelimit
+
+from .models import User, Note, Tag, NoteToken, EmailVerificationToken
 from .forms import EmailLoginForm, EmailRegisterForm, NoteForm
+from .emails import send_verification_email
+from .utils import get_client_ip, lookup_country_from_ip
 
 from django.http import HttpResponse
 from django.http import JsonResponse
@@ -38,6 +45,24 @@ class CustomLoginView(LoginView):
     def get_success_url(self):
         return reverse_lazy('notes')
 
+    def form_valid(self, form):
+        user = form.get_user()
+
+        if user.is_frozen:
+            form.add_error(None, "Your account has been suspended. Contact support for details")
+            return self.render_to_response(self.get_context_data(
+                form=form,
+                frozen_email=user.email,
+                show_frozen_popup=True,
+            ))
+
+        response = super().form_valid(form)
+
+        if user.requires_email_verification:
+            self.request.session['show_verify_popup'] = True
+
+        return response
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['active_tab'] = 'login'
@@ -51,6 +76,18 @@ class RegisterPage(FormView):
 
     def form_valid(self, form):
         user = form.save()
+        user.signup_provider = User.SIGNUP_EMAIL
+
+        ip = get_client_ip(self.request)
+        country = lookup_country_from_ip(ip)
+        if country:
+            user.location = country
+
+        user.save(update_fields=['signup_provider', 'location'])
+
+        _, raw_token = EmailVerificationToken.issue(user)
+        send_verification_email(user, raw_token)
+
         login(self.request, user, backend='django.contrib.auth.backends.ModelBackend')
         return super().form_valid(form)
     
@@ -83,6 +120,8 @@ class NoteList(LoginRequiredMixin, ListView):
         context['search_input'] = self.request.GET.get('search-area') or ''
         context['tag_filter'] = self.request.GET.get('tag') or ''
         context['user_tags'] = Tag.objects.filter(user=self.request.user)
+        context['unverified_banner'] = self.request.user.requires_email_verification
+        context['unverified_email'] = self.request.user.email
         return context
 
 class NoteDetail(LoginRequiredMixin, DetailView):
@@ -104,6 +143,20 @@ class NoteCreate(LoginRequiredMixin, CreateView):
     form_class = NoteForm
     template_name = 'base/note_create.html'
 
+    def dispatch(self, request, *args, **kwargs):
+        user = request.user
+        if user.is_authenticated and user.note_limit is not None:
+            current_count = Note.objects.filter(user=user).count()
+            if current_count >= user.note_limit:
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse(
+                        {'ok': False, 'error': 'Email verification required',
+                         'message': 'Verify your email to create more notes'},
+                        status=403,
+                    )
+                self.blocked = True
+        return super().dispatch(request, *args, **kwargs)
+
     def get_success_url(self):
         token = NoteToken.objects.create(
             note=self.object, 
@@ -112,6 +165,16 @@ class NoteCreate(LoginRequiredMixin, CreateView):
         return reverse('note-update', kwargs={'token': token.token})
 
     def form_valid(self, form):
+        user = self.request.user
+        if user.note_limit is not None and Note.objects.filter(user=user).count() >= user.note_limit:
+            form.add_error(None, 'Verify your email to create more notes')
+            return self.form_invalid(form)
+
+        description = form.cleaned_data.get('description') or ''
+        if len(description) > user.note_max_chars:
+            form.add_error('description', f'Note too long (max {user.note_max_chars} characters)')
+            return self.form_invalid(form)
+
         form.instance.user = self.request.user
         response = super(NoteCreate, self).form_valid(form)
 
@@ -140,31 +203,14 @@ class NoteUpdate(LoginRequiredMixin, UpdateView):
     form_class = NoteForm
     template_name = 'base/note_update.html'
 
-    def get_success_url(self):
-        return reverse('note-update', kwargs={'token': self.kwargs['token']})
-
-    def get_object(self):
-        token = get_object_or_404(
-            NoteToken.objects.select_related('note'), token=self.kwargs['token']
-        )
-        note = token.note
-        if note.user != self.request.user:
-            raise PermissionDenied
-        return note
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        note = self.object
- 
-        context['note_tags'] = note.tags.filter(user=self.request.user)
- 
-        context['available_tags'] = (
-            Tag.objects.filter(user=self.request.user)
-            .exclude(notes=note)
-        )
-        return context
-    
     def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        new_description = request.POST.get('description', '')
+        if len(new_description) > request.user.note_max_chars:
+            return JsonResponse(
+                {'ok': False, 'error': f'Note too long (max {request.user.note_max_chars} characters)'},
+                status=400,
+            )
         response = super().post(request, *args, **kwargs)
 
         note = self.object
@@ -193,6 +239,30 @@ class NoteUpdate(LoginRequiredMixin, UpdateView):
             note.tags.remove(*tags_to_remove)
 
         return response
+
+    def get_success_url(self):
+        return reverse('note-update', kwargs={'token': self.kwargs['token']})
+
+    def get_object(self):
+        token = get_object_or_404(
+            NoteToken.objects.select_related('note'), token=self.kwargs['token']
+        )
+        note = token.note
+        if note.user != self.request.user:
+            raise PermissionDenied
+        return note
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        note = self.object
+ 
+        context['note_tags'] = note.tags.filter(user=self.request.user)
+ 
+        context['available_tags'] = (
+            Tag.objects.filter(user=self.request.user)
+            .exclude(notes=note)
+        )
+        return context
 
 class NoteDelete(LoginRequiredMixin, DeleteView):
     model = Note
@@ -300,46 +370,56 @@ def import_notes(request):
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
     MAX_FILES = 50
-    
     files = request.FILES.getlist('files')
     if not files:
         return JsonResponse({'error': 'No files provided'}, status=400)
-
     if len(files) > MAX_FILES:
-        return JsonResponse(
-            {'error': f'Too many files. Maximum {MAX_FILES} per one load'},
-            status=400
-        )
-    
+        return JsonResponse({'error': f'Too many files. Maximum {MAX_FILES} per one load'}, status=400)
+
+    user = request.user
+    limit = user.note_limit
+    if limit is not None:
+        existing_count = Note.objects.filter(user=user).count()
+        remaining = max(0, limit - existing_count)
+        if remaining == 0:
+            return JsonResponse(
+                {'ok': False, 'error': 'Email verification required',
+                 'message': 'Verify your email to create more notes'},
+                status=403,
+            )
+        files = files[:remaining]
+
     ALLOWED_EXTENTIONS = {'.md', '.txt'}
     MAX_FILE_SIZE = 5 * 1024 * 1024
     MAX_TITLE_LENGTH = 199
+    max_chars = user.note_max_chars
 
     notes_to_create = []
+    skipped = []
 
     for f in files:
         name = f.name or ''
         ext = os.path.splitext(name)[1].lower()
-
         if ext not in ALLOWED_EXTENTIONS:
+            skipped.append({'file': name, 'reason': 'Unsupported file type'})
             continue
-
         if f.size > MAX_FILE_SIZE:
+            skipped.append({'file': name, 'reason': 'File exceeds 5 MB'})
             continue
-
-        try: 
+        try:
             content = f.read().decode('utf-8')
         except (UnicodeDecodeError, ValueError):
+            skipped.append({'file': name, 'reason': 'Could not read as UTF-8 text'})
+            continue
+
+        if len(content) > max_chars:
+            skipped.append({'file': name, 'reason': f'Exceeds {max_chars} character limit'})
             continue
 
         raw_title = os.path.splitext(name)[0]
         title = raw_title[:MAX_TITLE_LENGTH].strip() or 'Untitled'
 
-        notes_to_create.append(Note(
-            user=request.user,
-            title=title,
-            description=content,
-        ))
+        notes_to_create.append(Note(user=user, title=title, description=content))
 
     with transaction.atomic():
         created_notes = Note.objects.bulk_create(notes_to_create)
@@ -348,12 +428,23 @@ def import_notes(request):
             for note in created_notes
         ])
 
-    return JsonResponse({'ok': True, 'created': len(created_notes)})
+    return JsonResponse({
+        'ok': True,
+        'created': len(created_notes),
+        'skipped': skipped,
+    })
 
 @login_required
 def change_password(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    if request.user.requires_email_verification:
+        return JsonResponse(
+            {'ok': False, 'error': 'Email verification required',
+             'message': 'Verify your email to change your password'},
+            status=403,
+        )
 
     try:
         body = json_module.loads(request.body)
@@ -382,3 +473,49 @@ def change_password(request):
     update_session_auth_hash(request, request.user)
 
     return JsonResponse({'ok': True})
+
+def verify_email_confirm(request, token):
+    if request.method == 'POST':
+        user = EmailVerificationToken.consume(token)
+
+        if user is None:
+            target = 'notes' if request.user.is_authenticated else 'login'
+            return redirect(f"{reverse(target)}?verify_error=1")
+
+        user.is_email_verified = True
+        user.email_verified_at = timezone.now()
+        user.save(update_fields=['is_email_verified', 'email_verified_at'])
+        
+        target = 'notes' if request.user.is_authenticated else 'login'
+        return redirect(f"{reverse(target)}?verified=1")
+
+    return render(request, 'base/verify_confirm.html', {'token': token})
+
+def email_from_json_body(group, request):
+    try:
+        body = json_module.loads(request.body)
+        return (body.get('email') or '').strip().lower()
+    except (ValueError, KeyError):
+        return ''
+
+@ratelimit(key=email_from_json_body, rate='5/h', method='POST', block=True)
+@ratelimit(key='ip', rate='20/h', method='POST', block=True)
+@require_http_methods(['POST'])
+def resend_verification(request):
+    try:
+        body = json_module.loads(request.body)
+        email = (body.get('email') or '').strip().lower()
+    except (ValueError, KeyError):
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+
+    if not email:
+        return JsonResponse({'error': 'Email required'}, status=400)
+
+    generic = {'message': 'New verification link has been sent'}
+
+    user = User.objects.filter(email__iexact=email).first()
+    if user and user.requires_email_verification:
+        _, raw_token = EmailVerificationToken.issue(user)
+        send_verification_email(user, raw_token)
+
+    return JsonResponse(generic)

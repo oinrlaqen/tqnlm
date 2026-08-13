@@ -224,12 +224,33 @@ function openRenameModal(tagId, tagName, renameUrl, e) {
     setTimeout(() => { input.focus(); input.select(); }, 50);
 }
 
-function showToast(msg, isError = false) {
+function showToast(msg, isError = false, isSuccess = false) {
     const t = document.getElementById('toast');
     t.textContent = msg;
-    t.className = 'show' + (isError ? ' toast-error' : '');
+    t.className = 'show' + (isError ? ' toast-error' : isSuccess ? ' toast-success' : '');
     clearTimeout(t._timer);
     t._timer = setTimeout(() => { t.className = ''; }, 3000);
+}
+
+function resendVerification() {
+    const banner = document.getElementById('verifyBanner');
+    const email = banner?.dataset.email;
+    if (!email) return;
+
+    fetch(RESEND_VERIFICATION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+        body: JSON.stringify({ email }),
+    })
+        .then(res => res.json())
+        .then(data => showToast(data.message || 'Check your inbox for a new link', false, true))
+        .catch(() => showToast('Something went wrong. Try again.', true));
+}
+
+function dismissVerifyBanner() {
+    const banner = document.getElementById('verifyBanner');
+    if (!banner) return;
+    banner.style.display = 'none';
 }
 
 function confirmRenameTag() {
@@ -456,6 +477,16 @@ const iconDelete = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" s
 // Debounce timer for search input
 let debounceTimer;
 document.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('verified')) {
+        showToast('Email verified. Happy scribing!', false, true);
+        params.delete('verified');
+        history.replaceState({}, '', `${window.location.pathname}${params.toString() ? '?' + params : ''}`);
+    } else if (params.has('verify_error')) {
+        showToast('Verification link expired. Request a new one', true);
+        params.delete('verify_error');
+        history.replaceState({}, '', `${window.location.pathname}${params.toString() ? '?' + params : ''}`);
+    }
     document.getElementById('searchInput').addEventListener('input', () => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(renderNotes, 150);
@@ -729,7 +760,7 @@ async function confirmUpload() {
         const data = await res.json();
         if (!res.ok || !data.ok) { showToast('Upload failed', true); return; }
         closeUploadModal();
-        showToast(`${data.created} note${data.created !== 1 ? 's' : ''} uploaded`);
+        showToast(`${data.created} note${data.created !== 1 ? 's' : ''} uploaded`, false, true);
         setTimeout(() => window.location.reload(), 1200);
     } catch {
         showToast('Upload failed', true);

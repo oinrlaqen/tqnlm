@@ -2,7 +2,8 @@ from django.urls import path
 from .views import ( 
     RegisterPage, NoteList, NoteDetail, NoteCreate, NoteUpdate, 
     NoteDelete, CustomLoginView, LogoutView, remove_tag_from_note,
-    delete_tag, rename_tag, export_notes, import_notes, change_password
+    delete_tag, rename_tag, export_notes, import_notes, change_password,
+    verify_email_confirm, resend_verification
 )
 
 urlpatterns = [
@@ -20,4 +21,6 @@ urlpatterns = [
     path('export/', export_notes, name='export_notes'),
     path('import/', import_notes, name='import_notes'),
     path('change-password/', change_password, name='change_password'),
+    path('verify-email/<str:token>/', verify_email_confirm, name='verify-email'),
+    path('resend-verification/', resend_verification, name='resend-verification'),
 ]
